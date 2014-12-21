@@ -1,0 +1,364 @@
+// ======================================================================== //
+// Copyright 2009-2014 Intel Corporation                                    //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
+
+#include "PartiKD.h"
+
+//#define CHECK 1
+
+namespace ospray {
+  using std::endl;
+  using std::cout;
+
+  struct SubtreeIterator {
+    size_t curInLevel;
+    size_t maxInLevel;
+    size_t current;
+
+    __forceinline SubtreeIterator(size_t root)
+      : curInLevel(0), maxInLevel(1), current(root) 
+    {}
+    __forceinline operator size_t() const { return current; }
+    __forceinline void operator++() {
+      ++current;
+      ++curInLevel;
+      if (curInLevel == maxInLevel) {
+        current = PartiKD::leftChildOf(current-maxInLevel);
+        maxInLevel += maxInLevel;
+        curInLevel = 0;
+      }
+    }
+    __forceinline SubtreeIterator &operator=(const SubtreeIterator &other) {
+      curInLevel = other.curInLevel;
+      maxInLevel = other.maxInLevel;
+      current    = other.current;
+      return *this;
+    }
+  };
+
+  struct PKDBuildJob {
+    const PartiKD *const pkd;
+    const size_t nodeID;
+    const box3f  bounds;
+    const size_t depth;
+    __forceinline PKDBuildJob(const PartiKD *pkd, size_t nodeID, box3f bounds, size_t depth) 
+      : pkd(pkd), nodeID(nodeID), bounds(bounds), depth(depth) 
+    {};
+  };
+
+  void *pkdBuildThread(void *arg)
+  {
+    PKDBuildJob *job = (PKDBuildJob *)arg;
+    job->pkd->buildRec(job->nodeID,job->bounds,job->depth);
+    delete job;
+    return NULL;
+  } 
+
+#define FAST 1
+
+#if FAST
+#  define POS(idx,dim) position[idx].x
+#else
+# define POS(idx,dim) pos(idx,dim)
+#endif
+
+
+  void PartiKD::buildRec(const size_t nodeID, 
+                         const box3f &bounds,
+                         const size_t depth) const
+  {
+    // if (depth < 4)
+    //   std::cout << "#osp:pkd: building subtree " << nodeID << std::endl;
+    if (!hasLeftChild(nodeID)) 
+      // has no children -> it's a valid kd-tree already :-)
+      return;
+    
+    // we have at least one child.
+    const size_t dim = depth % 3;
+    const size_t N = numParticles;
+#if FAST
+    ParticleModel::vec_t *const position = (ParticleModel::vec_t*)(&model->position[0].x+dim);
+#endif
+    if (!hasRightChild(nodeID)) {
+      // no right child, but not a leaf emtpy. must have exactly one
+      // child on the left. see if we have to swap, but otherwise
+      // nothing to do.
+      size_t lChild = leftChildOf(nodeID);
+      if (POS(lChild,dim) > POS(nodeID,dim)) 
+        swap(nodeID,lChild);
+      // and done
+      return;
+    }
+ 
+    {
+#if 1
+    // we have a left and a right subtree, each of at least 1 node.
+    SubtreeIterator l0(leftChildOf(nodeID));
+    SubtreeIterator r0(rightChildOf(nodeID));
+
+# if 1
+    SubtreeIterator l((size_t)l0); //(leftChildOf(nodeID));
+    SubtreeIterator r((size_t)r0); //(rightChildOf(nodeID));
+# else
+    SubtreeIterator l = l0; //(leftChildOf(nodeID));
+    SubtreeIterator r = r0; //(rightChildOf(nodeID));
+# endif
+    
+
+    // size_t numSwaps = 0, numComps = 0;
+    float rootPos = POS(nodeID,dim);
+    while(1) {
+
+      while (isValidNode(l,N) && (POS(l,dim) <= rootPos)) ++l; 
+      while (isValidNode(r,N) && (POS(r,dim) >= rootPos)) ++r; 
+
+      if (isValidNode(l,N)) {
+        if (isValidNode(r,N)) {
+          // both mis-mathces valid, just swap them and go on
+          swap(l,r); ++l; ++r;
+          continue;
+        } else {
+          // mis-match on left side, but nothing on right side to swap with: swap with root
+          // --> can't go on on right side any more, but can still compact matches on left
+          l0 = l;
+          ++l;
+          while (isValidNode(l,N)) {
+            if (POS(l,dim) <= rootPos) { swap(l0,l); ++l0; }
+            ++l;
+          }
+          swap(nodeID,l0); ++l0;
+          rootPos = POS(nodeID,dim);
+
+          l = l0;
+          r = r0;
+          continue;
+        }
+      } else {
+        if (isValidNode(r,N)) {
+          // mis-match on left side, but nothing on right side to swap with: swap with root
+          // --> can't go on on right side any more, but can still compact matches on left
+          r0 = r;
+          ++r;
+          while (isValidNode(r,N)) {
+            if (POS(r,dim) >= rootPos) { swap(r0,r); ++r0; }
+            ++r;
+          }
+          swap(nodeID,r0); ++r0;
+          rootPos = POS(nodeID,dim);
+          
+          l = l0;
+          r = r0;
+          continue;
+        } else {
+          // no mis-match on either side ... done.
+          break;
+        }
+      }
+    }
+#else
+    size_t lRoot = leftChildOf(nodeID);
+    size_t rRoot = rightChildOf(nodeID);
+    {
+      // build max-heap on left
+      SubtreeIterator l(lRoot); ++l;
+      while (isValidNode(l)) {
+        // heap up
+        size_t cur = l;
+        while (cur != lRoot) {
+          size_t parent = parentOf(cur);
+          if (pos(cur,dim) <= pos(parent,dim)) break;
+          swap(cur,parent);
+          cur = parent;
+        }
+        ++l;
+      }
+    }
+      
+    {
+      // build min-heap on right
+      SubtreeIterator r(rRoot); ++r;
+      while (isValidNode(r)) {
+        // heap up
+        size_t cur = r;
+        while (cur != rRoot) {
+          size_t parent = parentOf(cur);
+          if (pos(cur,dim) >= pos(parent,dim)) break;
+          swap(cur,parent);
+          cur = parent;
+        }
+        ++r;
+      }
+    }
+
+    while(1) {
+      // lRoot has biggest in left tree; rRoot has smallest in right tree
+      if (pos(lRoot,dim) <= pos(rRoot,dim)) {
+        // left and right subtree's dont' overlap. check root.
+        if (pos(nodeID,dim) < pos(lRoot,dim)) {
+          swap(nodeID,lRoot);
+        } else if (pos(nodeID,dim) > pos(rRoot,dim)) {
+          swap(nodeID,rRoot);
+        } 
+        // done, tree is balanced
+        break;
+      }
+
+      swap(lRoot,rRoot);
+
+      // update max-heap on left: bubble up biggest child, until no longer possible
+      {
+        size_t cur = lRoot;
+        while (1) {
+          size_t lChild = leftChildOf(cur), rChild = lChild+1;
+          if (!isValidNode(lChild)) break;
+          size_t target = lChild;
+          if (isValidNode(rChild) && pos(rChild,dim) > pos(lChild,dim)) target = rChild;
+          if (pos(cur,dim) >= pos(target,dim)) break;
+          swap(cur,target);
+          cur = target;
+        }
+      }
+
+      // update min-heap on right: bubble up smallest child, until no longer possible
+      {
+        size_t cur = rRoot;
+        while (1) {
+          size_t lChild = leftChildOf(cur), rChild = lChild+1;
+          if (!isValidNode(lChild)) break;
+          size_t target = lChild;
+          if (isValidNode(rChild) && pos(rChild,dim) < pos(lChild,dim)) target = rChild;
+          if (pos(cur,dim) <= pos(target,dim)) break;
+          swap(cur,target);
+          cur = target;
+        }
+      }
+    }
+#endif
+
+#if CHECK
+    // check tree:
+    {
+      SubtreeIterator l(leftChildOf(nodeID));
+      SubtreeIterator r(rightChildOf(nodeID));
+      while (isValidNode(l)) {
+        if (!(pos(l,dim) <= pos(nodeID,dim)))
+          throw std::runtime_error("error in building. not a valid kd-tree...");
+        ++l;
+      }
+      while (isValidNode(r)) {
+        if (!(pos(r,dim) >= pos(nodeID,dim)))
+          throw std::runtime_error("error in building. not a valid kd-tree...");
+        ++r;
+      }
+    }
+#endif
+    }
+
+    box3f lBounds = bounds;
+    box3f rBounds = bounds;
+    
+    lBounds.upper[dim] = rBounds.lower[dim] = pos(nodeID,dim);
+
+#if 1
+    if ((numLevels - depth) > 20) {
+      pthread_t lThread,rThread;
+      pthread_create(&lThread,NULL,pkdBuildThread,new PKDBuildJob(this,leftChildOf(nodeID),lBounds,depth+1));
+      buildRec(rightChildOf(nodeID),rBounds,depth+1);
+      void *ret = NULL;
+      pthread_join(lThread,&ret);
+    } else
+#endif
+      {
+        buildRec(leftChildOf(nodeID),lBounds,depth+1);
+        buildRec(rightChildOf(nodeID),rBounds,depth+1);
+      }
+  }
+
+  inline void PartiKD::swap(const size_t a, const size_t b) const 
+  { 
+    std::swap(model->position[a],model->position[b]);
+    for (size_t i=0;i<model->attribute.size();i++)
+      std::swap(model->attribute[i]->value[a],model->attribute[i]->value[b]);
+    if (!model->type.empty())
+      std::swap(model->type[a],model->type[b]);
+  }
+
+  void PartiKD::build(ParticleModel *model) 
+  {
+    assert(!this-model);
+    assert(model);
+    this->model = model;
+
+    assert(!model->position.empty());
+    numParticles = model->position.size();
+    assert(numParticles <= (1ULL << 31));
+
+    numInnerNodes = numInnerNodesOf(numParticles);
+
+    // determine num levels
+    numLevels = 0;
+    size_t nodeID = 0;
+    while (isValidNode(nodeID)) { ++numLevels; nodeID = leftChildOf(nodeID); }
+    PRINT(numLevels);
+
+    const box3f &bounds = model->getBounds();
+    std::cout << "#osp:pkd: bounds of model " << bounds << std::endl;
+    buildRec(0,bounds,0);
+  }
+
+
+  void partiKDMain(int ac, char **av)
+  {
+    std::vector<std::string> input;
+    std::string output;
+    for (int i=1;i<ac;i++) {
+      std::string arg = av[i];
+      if (arg[0] == '-') {
+        if (arg == "-o") {
+          output = av[++i];
+        } else
+          throw std::runtime_error("unknown parameter '"+arg+"'");
+      } else {
+        input.push_back(arg);
+      }
+    }
+    if (input.empty()) {
+      throw std::runtime_error("no input file(s) specified");
+    }
+    if (output == "")
+      throw std::runtime_error("no output file specified");
+
+    // load the input(s)
+    ParticleModel model;
+    for (int i=0;i<input.size();i++)
+      model.load(input[i]);
+
+    double before = getSysTime();
+    std::cout << "#osp:pkd: building tree ..." << std::endl;
+    PartiKD partiKD;
+    partiKD.build(&model);
+    double after = getSysTime();
+    std::cout << "#osp:pkd: tree built (" << (after-before) << " sec)" << std::endl;
+  }
+}
+
+int main(int ac, char **av)
+{
+  try {
+    ospray::partiKDMain(ac,av);
+  } catch (std::runtime_error(e)) {
+    std::cout << "#osp:pkd (fatal): " << e.what() << std::endl;
+  }
+}
