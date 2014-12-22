@@ -24,11 +24,17 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
+  OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
+    ospray/PartiKDGeometry.cpp
+    ospray/PartiKDGeometry.ispc
+    )
+  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
+
   ADD_EXECUTABLE(ospPartiKD
-    PartiKD.cpp
-    ParticleModel.cpp
+    apps/PartiKD.cpp
+    apps/ParticleModel.cpp
     #importers
-    ImportUIntah.cpp
+    apps/ImportUIntah.cpp
     )
   TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------

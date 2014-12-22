@@ -318,6 +318,41 @@ namespace ospray {
     buildRec(0,bounds,0);
   }
 
+  //! save to xml+binary file(s)
+  void PartiKD::saveOSP(const std::string &fileName)
+  {
+    FILE *xml = fopen(fileName.c_str(),"w");
+    assert(xml);
+    const std::string binFileName = fileName + "bin";
+    FILE *bin = fopen(binFileName.c_str(),"wb");
+
+    fprintf(xml,"<?xml version=\"1.0\"?>\n");
+
+    fprintf(xml,"<OSPRay>\n"); 
+    { 
+      saveOSP(xml,bin);
+    } 
+    fprintf(xml,"</OSPRay>\n");
+
+    fclose(bin);
+    fclose(xml);
+  }
+
+  //! save to xml+binary file(s)
+  void PartiKD::saveOSP(FILE *xml, FILE *bin)
+  {
+    fprintf(xml,"<PKDGeometry>\n");
+    fprintf(xml,"<position ofs=\"%li\" count=\"%li\" format=\"vec3f\"/>\n",
+            ftell(bin),numParticles);
+    fwrite(&model->position[0],sizeof(ParticleModel::vec_t),numParticles,bin);
+    for (int i=0;i<model->attribute.size();i++) {
+      ParticleModel::Attribute *attr = model->attribute[i];
+      fprintf(xml,"<attribute name=\"%s\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
+              attr->name.c_str(),ftell(bin),numParticles);
+      fwrite(&attr->value[0],sizeof(float),numParticles,bin);
+    }
+    fprintf(xml,"</PKDGeometry>\n");
+  }
 
   void partiKDMain(int ac, char **av)
   {
@@ -351,6 +386,10 @@ namespace ospray {
     partiKD.build(&model);
     double after = getSysTime();
     std::cout << "#osp:pkd: tree built (" << (after-before) << " sec)" << std::endl;
+
+    std::cout << "#osp:pkd: writing binary data to " << output << endl;
+    partiKD.saveOSP(output);
+    std::cout << "#osp:pkd: done." << endl;
   }
 }
 

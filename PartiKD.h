@@ -35,6 +35,11 @@ namespace ospray {
 
     //! build particle tree over given model. WILL REORDER THE MODEL'S ELEMENTS
     void build(ParticleModel *model);
+    
+    //! save to xml+binary file
+    void saveOSP(const std::string &fileName);
+    //! save to xml+binary file(s)
+    void saveOSP(FILE *xml, FILE *bin);
 
     /*! @{ \brief Balanced KD-tree helper functions */
     
@@ -59,4 +64,21 @@ namespace ospray {
 
   };
 
+
+  //! \brief common function to help printf-debugging 
+  virtual std::string toString() const { return "ospray::Geometry"; }
+  /*! \brief integrates this geometry's primitives into the respective
+    model's acceleration structure */
+  virtual void finalize(Model *model) {}
+  
+
+  /*! the actual ospray geometry for a PartiKD */
+  struct PartiKDGeometry : public ospray::Geometry {
+    //! \brief common function to help printf-debugging 
+    virtual std::string toString() const { return "ospray::Geometry"; }
+    /*! \brief integrates this geometry's primitives into the respective
+        model's acceleration structure */
+    virtual void finalize(Model *model) {}
+    
+  };
 }
