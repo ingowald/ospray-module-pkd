@@ -25,10 +25,10 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
-    ospray/PartiKDGeometry.cpp
-    ospray/PartiKDGeometry.ispc
+    ospray/PKDGeometry.cpp
+    ospray/PKDGeometry.ispc
     )
-  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
+  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
 
   ADD_EXECUTABLE(ospPartiKD
     apps/PartiKD.cpp

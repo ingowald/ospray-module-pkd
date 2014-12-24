@@ -64,21 +64,4 @@ namespace ospray {
 
   };
 
-
-  //! \brief common function to help printf-debugging 
-  virtual std::string toString() const { return "ospray::Geometry"; }
-  /*! \brief integrates this geometry's primitives into the respective
-    model's acceleration structure */
-  virtual void finalize(Model *model) {}
-  
-
-  /*! the actual ospray geometry for a PartiKD */
-  struct PartiKDGeometry : public ospray::Geometry {
-    //! \brief common function to help printf-debugging 
-    virtual std::string toString() const { return "ospray::Geometry"; }
-    /*! \brief integrates this geometry's primitives into the respective
-        model's acceleration structure */
-    virtual void finalize(Model *model) {}
-    
-  };
 }

@@ -1,0 +1,88 @@
+// ======================================================================== //
+// Copyright 2009-2014 Intel Corporation                                    //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
+
+// ospray
+#include "ospray/math/vec.ih"
+#include "ospray/math/bbox.ih"
+#include "ospray/common/Ray.ih"
+#include "ospray/geometry/geometry.ih"
+#include "ospray/common/Model.ih"
+#include "ospray/transferfunction/LinearTransferFunction.ih"
+
+#define USE_NAIVE_SPMD_TRAVERSAL 0
+
+/*! iw: in theory this could be a vec3f, but ISPC 1.8.0 doesn't
+    properly handle the (&vec3f.x)[dim] expression we need to get a
+    particular dimenesion of a vec3f, we have to use a float[3]
+    instead (ispc issue #925) */
+struct PKDParticle {
+  float position[3];
+};
+
+/*! OSPRay Geometry for a Particle KD Tree geometry type */
+struct PartiKDGeometry {
+  //! inherited geometry fields  
+  uniform Geometry geometry;
+  
+  //! number of particles
+  size_t numParticles;
+  //! number of inner nodes
+  size_t numInnerNodes;
+
+  //! array of particles, in kd-tree order
+  PKDParticle *uniform particle;
+  
+  // /*! gives the split dim for each inner node (if non-round robin
+  //   split dim was used during construction), or NULL (in which case
+  //   dim==(depth%3) */
+  // unsigned int32 *innerNode_splitDim; 
+
+  //! bounding box of particle centers
+  box3f centerBounds;
+
+  //! bounding box of complete particles (centerBounds+radius)
+  box3f sphereBounds;
+
+  /*! (maximum) particle radius */
+  float           particleRadius;
+
+
+  // -------------------------------------------------------------------------
+  // THE FOLLOWING VALUES WILL ONLY BE SET FOR PKD-GEOMETRIES WITH ATTRIBUTES:
+  // -------------------------------------------------------------------------
+
+  /*! transfer function to be used for color (and alpha) mapping. only
+      valid if attribtue is set */
+  uniform TransferFunction *uniform transferFunction;
+
+  /*! bits of which bins in the transfer function are active */
+  uniform int32 transferFunction_activeBinBits;
+
+  //! array of attributes for culling. 'NULL' means 'no attribute on
+  //! this'
+  float *uniform attribute;
+  /*! @{ lower and upper bounds for attribute, for normalizing
+      attribute value */
+  float attr_lo, attr_hi;
+  /*! @} */
+
+  /*! info for hierarchical culling (if non-NULL): one uint per
+    inner node, giving a 16-bit mask of which bins of attribute values
+    are present in the given subtree. Will be NULL if and only if
+    attribute array is NULL. */
+  const unsigned uint32 *innerNode_attributeMask;
+};
+
