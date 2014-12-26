@@ -53,11 +53,11 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     if (dot(ray.dir,Ns) >= 0.f) Ns = neg(Ns);
   }
 
-  if ((flags & DG_COLOR) && (THIS->attribute != NULL)) {
+  if ((flags & DG_COLOR) & (THIS->attribute != NULL) & (THIS->transferFunction != NULL)) {
     foreach_unique(primID in ray.primID) {
-
+      
       uniform float attrib = THIS->attribute[primID];//particle[primID].attribute;
-
+      
       // normalize attribute to the [0,1] range (by normalizing relative
       // to the attribute range stored in the min max BVH's root node
       const uniform float attrib_lo = THIS->attr_lo;
@@ -83,6 +83,8 @@ void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
 {
   bbox.lower = geometry->sphereBounds.lower;
   bbox.upper = geometry->sphereBounds.upper;
+  print("bounds.lower % % %\n",bbox.lower.x,bbox.lower.y,bbox.lower.z);
+  print("bounds.upper % % %\n",bbox.upper.x,bbox.upper.y,bbox.upper.z);
 }
 
 
@@ -91,6 +93,7 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
                                        uniform int primID,
                                        varying Ray &ray)
 {
+  //  print("isecprim\n");
   // typecast "implicit THIS" pointer to the proper geometry type
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
 
@@ -125,22 +128,25 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   }
   else /* miss : */ return false;
 
-  // -------------------------------------------------------
-  // do attribute test
-  uniform float attrib = THIS->attribute[primID];
+  // do attribute alpha test, if both attribute and transfer fct are set
+  if ((THIS->attribute!=NULL) & (THIS->transferFunction!=NULL)) {
+    // -------------------------------------------------------
+    // do attribute test
+    uniform float attrib = THIS->attribute[primID];
 
-  // normalize attribute to the [0,1] range (by normalizing relative
-  // to the attribute range stored in the min max BVH's root node
-  const uniform float attrib_lo = THIS->attr_lo;
-  const uniform float attrib_hi = THIS->attr_hi;
-  attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
+    // normalize attribute to the [0,1] range (by normalizing relative
+    // to the attribute range stored in the min max BVH's root node
+    const uniform float attrib_lo = THIS->attr_lo;
+    const uniform float attrib_hi = THIS->attr_hi;
+    attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
   
-  // compute alpha value from attribute value
-  const float alpha
-    = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,attrib);
-  if (alpha <= .5f)
-    return false;
-  
+    // compute alpha value from attribute value
+    const float alpha
+      = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,attrib);
+    if (alpha <= .5f)
+      return false;
+  }
+
   // found a hit - store it
   ray.primID = primID;
   ray.geomID = THIS->geometry.geomID;
@@ -164,6 +170,8 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
   
   if (t_out < t_in) return;
 
+  // print("Isec % %\n",t_in,t_out);
+
   PartiKDStackEntryPacket stack[64];
   uniform int32       stackPtr = 0;
   uniform size_t      depth    = 0;
@@ -179,10 +187,19 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
   const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
   while (1) {
     while (1) {
+      // print("nodeID % depth %\n",nodeID,depth);
       if (t_out < t_in) break;
+
+      const uniform size_t dim = depth % 3; //THIS->innerNode_dimBits;
+      const uniform float plane_coord = THIS->particle[nodeID].position[dim];
+      
+      const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+      const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+
       if (nodeID >= THIS->numInnerNodes) {
         // this is a leaf ...
-        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+        if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
+          PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
         break; // pop
       } else {
         if (nodeBinBits != NULL) {
@@ -190,15 +207,9 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
           if ((THIS->transferFunction_activeBinBits & binBits) == 0) break;
         }
         
-        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+        if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
+          PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
         t_out = min(t_out,ray.t);
-        
-        const uniform size_t dim = depth % 3; //THIS->innerNode_dimBits;
-        const uniform float plane_coord = THIS->particle[nodeID].position[dim];
-#if 0
-
-        const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rcp(dir[dim]);
-        const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rcp(dir[dim]);
         
         float t_in_0 = t_in;
         float t_out_0 = t_out;
@@ -248,7 +259,7 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
             t_in = t_in_0;
             t_out = t_out_0;
             nodeID = 2*nodeID+1;
-              ++depth;
+            ++depth;
             continue;
           }
         } else {
@@ -256,13 +267,12 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
             t_in = t_in_1;
             t_out = t_out_1;
             nodeID = 2*nodeID+2;
-              ++depth;
+            ++depth;
             continue;
           } else {
             break; // pop
           }
         }
-#endif
       }
     }
     // TODO: pop
@@ -412,6 +422,7 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
 
 export void *uniform PartiKDGeometry_create(void           *uniform cppEquivalent)
 {
+  print("CREATING PKD\n");
   uniform PartiKDGeometry *uniform geom = uniform new uniform PartiKDGeometry;
   Geometry_Constructor(&geom->geometry,cppEquivalent,
                        PartiKDGeometry_postIntersect,

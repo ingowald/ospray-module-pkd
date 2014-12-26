@@ -17,17 +17,32 @@
 #pragma once
 
 #include "ospray/geometry/Geometry.h"
+#include "ospray/common/Data.h"
+#include "ospray/transferFunction/TransferFunction.h"
 
 namespace ospray {
 
   /*! the actual ospray geometry for a PartiKD */
   struct PartiKDGeometry : public ospray::Geometry {
+    //! Constructor
+    PartiKDGeometry();
+
     //! \brief common function to help printf-debugging 
-    virtual std::string toString() const { return "ospray::Geometry"; }
+    virtual std::string toString() const { return "ospray::PartiKDGeometry"; }
 
     /*! \brief integrates this geometry's primitives into the respective
         model's acceleration structure */
     virtual void finalize(Model *model);
+
+    /*! return bounding box of particle centers */
+    box3f getBounds() const;
+
+    //! transfer function for color/alpha mapping, may be NULL
+    Ref<TransferFunction> transferFunction;
+    Ref<Data> particleData;
+    vec3f    *particle;
+    size_t    numParticles;
+    float     particleRadius;
   };
   
 } // ::ospray

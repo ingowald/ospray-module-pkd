@@ -351,6 +351,8 @@ namespace ospray {
               attr->name.c_str(),ftell(bin),numParticles);
       fwrite(&attr->value[0],sizeof(float),numParticles,bin);
     }
+    if (model->radius > 0.)
+      fprintf(xml,"<radius>%f</radius>\n",model->radius);
     fprintf(xml,"</PKDGeometry>\n");
   }
 
@@ -358,13 +360,18 @@ namespace ospray {
   {
     std::vector<std::string> input;
     std::string output;
+    ParticleModel model;
+
     for (int i=1;i<ac;i++) {
       std::string arg = av[i];
       if (arg[0] == '-') {
         if (arg == "-o") {
           output = av[++i];
-        } else
+        } else if (arg == "--radius") {
+          model.radius = atof(av[++i]);
+        } else {
           throw std::runtime_error("unknown parameter '"+arg+"'");
+        }
       } else {
         input.push_back(arg);
       }
@@ -374,11 +381,17 @@ namespace ospray {
     }
     if (output == "")
       throw std::runtime_error("no output file specified");
+    
+    if (model.radius == 0.f)
+      std::cout << "#osp:pkd: no radius specified on command line" << std::endl;
 
     // load the input(s)
-    ParticleModel model;
     for (int i=0;i<input.size();i++)
       model.load(input[i]);
+
+    if (model.radius == 0.f) {
+      throw std::runtime_error("no radius specified via either command line or model file");
+    }
 
     double before = getSysTime();
     std::cout << "#osp:pkd: building tree ..." << std::endl;
