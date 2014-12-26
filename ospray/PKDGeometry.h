@@ -31,15 +31,21 @@ namespace ospray {
     virtual std::string toString() const { return "ospray::PartiKDGeometry"; }
 
     /*! \brief integrates this geometry's primitives into the respective
-        model's acceleration structure */
+      model's acceleration structure */
     virtual void finalize(Model *model);
 
     /*! return bounding box of particle centers */
     box3f getBounds() const;
 
+    /*! gets called whenever any of this node's dependencies got changed */
+    virtual void dependencyGotChanged(ManagedObject *object);
+
     //! transfer function for color/alpha mapping, may be NULL
     Ref<TransferFunction> transferFunction;
     Ref<Data> particleData;
+    Ref<Data> attributeData;
+
+    float    *attribute;
     vec3f    *particle;
     size_t    numParticles;
     float     particleRadius;

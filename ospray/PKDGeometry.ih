@@ -69,7 +69,7 @@ struct PartiKDGeometry {
   uniform TransferFunction *uniform transferFunction;
 
   /*! bits of which bins in the transfer function are active */
-  uniform int32 transferFunction_activeBinBits;
+  uniform uint32 transferFunction_activeBinBits;
 
   //! array of attributes for culling. 'NULL' means 'no attribute on
   //! this'

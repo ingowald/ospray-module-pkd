@@ -351,6 +351,8 @@ namespace ospray {
               attr->name.c_str(),ftell(bin),numParticles);
       fwrite(&attr->value[0],sizeof(float),numParticles,bin);
     }
+    // if (model->attribute.size() != 0) 
+    //   fprintf(xml,"<transferFunction><LinearTransferFunction/></transferFunction>\n");
     if (model->radius > 0.)
       fprintf(xml,"<radius>%f</radius>\n",model->radius);
     fprintf(xml,"</PKDGeometry>\n");

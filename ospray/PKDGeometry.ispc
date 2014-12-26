@@ -53,7 +53,8 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     if (dot(ray.dir,Ns) >= 0.f) Ns = neg(Ns);
   }
 
-  if ((flags & DG_COLOR) & (THIS->attribute != NULL) & (THIS->transferFunction != NULL)) {
+  
+  if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
     foreach_unique(primID in ray.primID) {
       
       uniform float attrib = THIS->attribute[primID];//particle[primID].attribute;
@@ -83,8 +84,8 @@ void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
 {
   bbox.lower = geometry->sphereBounds.lower;
   bbox.upper = geometry->sphereBounds.upper;
-  print("bounds.lower % % %\n",bbox.lower.x,bbox.lower.y,bbox.lower.z);
-  print("bounds.upper % % %\n",bbox.upper.x,bbox.upper.y,bbox.upper.z);
+  // print("bounds.lower % % %\n",bbox.lower.x,bbox.lower.y,bbox.lower.z);
+  // print("bounds.upper % % %\n",bbox.upper.x,bbox.upper.y,bbox.upper.z);
 }
 
 
@@ -294,13 +295,14 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
                                  varying Ray &ray,
                                  uniform size_t primID)
 {
-#if 0
+#if 1
+  PartiKDGeometry_intersect_packet(THIS,ray,primID);
+#else
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
 
   
   if (t_out < t_in) return;
-  // print("t % %\n",t_in,t_out);
 
   PartiKDStackEntryPacket stack[64];
   uniform int32 stackPtr = 0;
@@ -422,7 +424,6 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
 
 export void *uniform PartiKDGeometry_create(void           *uniform cppEquivalent)
 {
-  print("CREATING PKD\n");
   uniform PartiKDGeometry *uniform geom = uniform new uniform PartiKDGeometry;
   Geometry_Constructor(&geom->geometry,cppEquivalent,
                        PartiKDGeometry_postIntersect,
@@ -436,25 +437,29 @@ export void PartiKDGeometry_updateTransferFunction(void           *uniform _THIS
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)_THIS;
   LinearTransferFunction *uniform transferFunction = (LinearTransferFunction *uniform)_transferFunction;
   THIS->transferFunction_activeBinBits = 0;
-  for (uniform int i=0;i<30;i++) {
-    uniform float alphaRange = getMaxOpacityForRange(transferFunction,i/30.f,(i+1)/30.f);
+  for (uniform int i=0;i<32;i++) {
+    uniform float a0 = i/32.f;
+    uniform float a1 = (i+1)/32.f - 1e-5f;
+    uniform float alphaRange = getMaxOpacityForRange(transferFunction,a0,a1);
     if (alphaRange >= .5f)
       THIS->transferFunction_activeBinBits |= (1UL << i);
   }
-  // print("#osp:pkd: new range bits: %\n",(void*uniform )THIS->activeBinBits);
+  print("#osp:pkd: new range bits: %\n",(void*uniform )THIS->transferFunction_activeBinBits);
 }
 
 export void PartiKDGeometry_set(void       *uniform _geom,
-                            void           *uniform _model,
-                            void           *uniform transferFunction,
-                            float           uniform particleRadius,
-                            PKDParticle    *uniform particle,
-                            uniform size_t numParticles,
-                            uint32 *uniform innerNode_attributeMask,
-                            uniform size_t numInnerNodes,
-                            uniform box3f &centerBounds,
-                            uniform box3f &sphereBounds,
-                            uniform float attr_lo, uniform float attr_hi)
+                                void           *uniform _model,
+                                void           *uniform transferFunction,
+                                float           uniform particleRadius,
+                                uniform size_t  numParticles,
+                                uniform size_t  numInnerNodes,
+                                PKDParticle    *uniform particle,
+                                float          *uniform attribute,
+                                uint32         *uniform innerNode_attributeMask,
+                                uniform box3f &centerBounds,
+                                uniform box3f &sphereBounds,
+                                uniform float attr_lo, 
+                                uniform float attr_hi)
 {
   uniform PartiKDGeometry *uniform geom = (uniform PartiKDGeometry *uniform)_geom;
   uniform Model *uniform model = (uniform Model *uniform)_model;
@@ -466,13 +471,13 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->particleRadius  = particleRadius;
   geom->particle        = particle;
   geom->numParticles    = numParticles;
-  geom->innerNode_attributeMask   = innerNode_attributeMask;
   geom->numInnerNodes   = numInnerNodes;
   geom->centerBounds    = centerBounds;
   geom->sphereBounds    = sphereBounds;
-  geom->attr_lo = attr_lo;
-  geom->attr_hi = attr_hi;
-
+  geom->attribute       = attribute;
+  geom->attr_lo         = attr_lo;
+  geom->attr_hi         = attr_hi;
+  geom->innerNode_attributeMask   = innerNode_attributeMask;
   // geom->activeBinBits = 0xffffffff;
 
   geom->transferFunction  = (TransferFunction *uniform)transferFunction;
@@ -491,4 +496,6 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
                          (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
 #endif
+
+  if (transferFunction) PartiKDGeometry_updateTransferFunction(geom,transferFunction);
 }

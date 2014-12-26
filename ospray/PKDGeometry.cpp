@@ -40,6 +40,21 @@ namespace ospray {
       b.extend(particle[i]);
     return b;
   }
+
+  uint32 getAttributeBits(float val, float lo, float hi)
+  {
+    if (hi == lo) return 1;
+    int bit = std::max((int)31,int(32*((val-lo)/(hi-lo))));
+    return 1<<bit;
+  }
+
+  /*! gets called whenever any of this node's dependencies got changed */
+  void PartiKDGeometry::dependencyGotChanged(ManagedObject *object)
+  {
+    ispc::PartiKDGeometry_updateTransferFunction(this->getIE(),transferFunction->getIE());
+  }
+
+
   /*! \brief integrates this geometry's primitives into the respective
     model's acceleration structure */
   void PartiKDGeometry::finalize(Model *model) 
@@ -59,6 +74,12 @@ namespace ospray {
     numParticles = particleData->numItems;
     const box3f centerBounds = getBounds();
     
+    attributeData = getParamData("attribute",NULL);
+    transferFunction = (TransferFunction*)getParamObject("transferFunction",NULL);
+    if (transferFunction) {
+      transferFunction->registerListener(this);
+    }
+
     particleRadius = getParamf("radius",0.f);
     if (particleRadius <= 0.f)
       throw std::runtime_error("#osp:pkd: invalid radius (<= 0.f)");
@@ -71,18 +92,50 @@ namespace ospray {
                              centerBounds.upper + vec3f(particleRadius));
     size_t numInnerNodes = numParticles/2;
 
+
+    // compute attribute mask and attrib lo/hi values
+    float attr_lo = 0.f, attr_hi = 0.f;
+    uint32 *binBitsArray = NULL;
+    attribute = (float*)(attributeData?attributeData->data:NULL);
+    if (attribute) {
+      cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
+      attr_lo = attr_hi = attribute[0];
+      for (size_t i=0;i<numParticles;i++)
+        { attr_lo = std::min(attr_lo,attribute[i]); attr_hi = std::max(attr_hi,attribute[i]); }
+
+      binBitsArray = new uint32[numInnerNodes];
+      for (long long pID=numInnerNodes-1;pID>=0;--pID) {
+        size_t lID = 2*pID+1;
+        size_t rID = lID+1;
+        uint32 lBits = 0, rBits = 0;
+        if (rID < numInnerNodes)
+          rBits = binBitsArray[rID];
+        else if (rID < numParticles)
+          rBits = getAttributeBits(attribute[rID],attr_lo,attr_hi);
+        if (lID < numInnerNodes)
+          lBits = binBitsArray[lID];
+        else if (lID < numParticles)
+          lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
+        binBitsArray[pID] = lBits|rBits;
+      }
+      cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
+    }
+
+
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now
     // -------------------------------------------------------
     ispc::PartiKDGeometry_set(getIE(),model->getIE(),
                               transferFunction?transferFunction->getIE():NULL,
                               particleRadius,
-                              (ispc::PKDParticle*)particle,
                               numParticles,
-                              NULL,
                               numInnerNodes,
+                              (ispc::PKDParticle*)particle,
+                              attribute,binBitsArray,
                               (ispc::box3f&)centerBounds,(ispc::box3f&)sphereBounds,
-                              0.f,0.f);
+                              attr_lo,attr_hi);
+
+
 
   }    
 
