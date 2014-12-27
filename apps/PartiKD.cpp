@@ -18,9 +18,23 @@
 
 //#define CHECK 1
 
+//#define DIM_FROM_DEPTH 1
+// #define DIM_ROUND_ROBIN 1
+
 namespace ospray {
   using std::endl;
   using std::cout;
+
+  void PartiKD::setDim(size_t ID, int dim) const
+  {
+#if DIM_FROM_DEPTH
+    return;
+#else
+    vec3f &particle = (vec3f &)this->model->position[ID];
+    int &pxAsInt = (int &)particle.x;
+    pxAsInt = (pxAsInt & ~3) | dim;
+#endif
+  }
 
   struct SubtreeIterator {
     size_t curInLevel;
@@ -66,7 +80,7 @@ namespace ospray {
     return NULL;
   } 
 
-#define FAST 1
+  //#define FAST 1
 
 #if FAST
 #  define POS(idx,dim) position[idx].x
@@ -86,7 +100,11 @@ namespace ospray {
       return;
     
     // we have at least one child.
+#if DIM_ROUND_ROBIN
     const size_t dim = depth % 3;
+#else
+    const size_t dim = embree::maxDim(bounds.size());
+#endif
     const size_t N = numParticles;
 #if FAST
     ParticleModel::vec_t *const position = (ParticleModel::vec_t*)(&model->position[0].x+dim);
@@ -99,6 +117,7 @@ namespace ospray {
       if (POS(lChild,dim) > POS(nodeID,dim)) 
         swap(nodeID,lChild);
       // and done
+      setDim(nodeID,dim);
       return;
     }
  
@@ -269,6 +288,8 @@ namespace ospray {
     box3f lBounds = bounds;
     box3f rBounds = bounds;
     
+    setDim(nodeID,dim);
+      
     lBounds.upper[dim] = rBounds.lower[dim] = pos(nodeID,dim);
 
 #if 1

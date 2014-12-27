@@ -32,6 +32,10 @@ struct PKDParticle {
   float position[3];
 };
 
+struct INT3 {
+  int32 x,y,z;
+};
+
 /*! OSPRay Geometry for a Particle KD Tree geometry type */
 struct PartiKDGeometry {
   //! inherited geometry fields  

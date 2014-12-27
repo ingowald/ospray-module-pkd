@@ -134,9 +134,6 @@ namespace ospray {
                               attribute,binBitsArray,
                               (ispc::box3f&)centerBounds,(ispc::box3f&)sphereBounds,
                               attr_lo,attr_hi);
-
-
-
   }    
 
   OSP_REGISTER_GEOMETRY(PartiKDGeometry,pkd_geometry);

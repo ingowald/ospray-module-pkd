@@ -30,7 +30,18 @@
 
 #include "ospray/common/Box.ih"
 
+/*! if enabled, we use a naive SPMD traversal where each lane does its own traversal */
 #define USE_NAIVE_SPMD_TRAVERSAL 0
+
+/*! if defined, we'll use 'depth%3' for the partition dim; if not,
+    we'll use the lower two mantissa bits of the particle's x
+    coordinate for the split plane dimesnsion (this assumes that the
+    pkd tree has been built as such */
+#define DIM_FROM_DEPTH 1
+
+
+// uniform int64 dbg_numIntersections = 0;
+// uniform int64 dbg_numRays = 0;
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                       uniform Model *uniform model,
@@ -94,6 +105,7 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
                                        uniform int primID,
                                        varying Ray &ray)
 {
+ // dbg_numIntersections++;
   //  print("isecprim\n");
   // typecast "implicit THIS" pointer to the proper geometry type
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
@@ -156,16 +168,32 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   return true;
 }
 
+
+#if USE_NAIVE_SPMD_TRAVERSAL 
+#else
+
+#if DIM_FROM_DEPTH
+# define IF_HAS_DEPTH(a) a
+#else
+# define IF_HAS_DEPTH(a) 
+#endif
 struct PartiKDStackEntryPacket {
   varying float t_in, t_out;
   uniform size_t nodeID;
-  uniform size_t depth;
+  IF_HAS_DEPTH(uniform size_t depth;)
 };
 
 void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
                                       varying Ray &ray,
                                       uniform size_t primID)
 {
+  // dbg_numRays++;
+  // if (dbg_numRays >= 1000000) {
+  //   print("isecs per ray %\n",dbg_numIntersections/((double)dbg_numRays));
+  //   dbg_numRays = 0;
+  //   dbg_numIntersections = 0;
+  // }
+
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
   
@@ -175,14 +203,14 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
 
   PartiKDStackEntryPacket stack[64];
   uniform int32       stackPtr = 0;
-  uniform size_t      depth    = 0;
-  float org[3], dir[3];
+  IF_HAS_DEPTH(uniform size_t      depth    = 0);
+  float org[3], rdir[3];
   org[0] = ray.org.x;
   org[1] = ray.org.y;
   org[2] = ray.org.z;
-  dir[0] = ray.dir.x;
-  dir[1] = ray.dir.y;
-  dir[2] = ray.dir.z;
+  rdir[0] = rcp(ray.dir.x);
+  rdir[1] = rcp(ray.dir.y);
+  rdir[2] = rcp(ray.dir.z);
 
   uniform size_t nodeID = 0;
   const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
@@ -191,11 +219,17 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
       // print("nodeID % depth %\n",nodeID,depth);
       if (t_out < t_in) break;
 
+#if DIM_FROM_DEPTH
       const uniform size_t dim = depth % 3; //THIS->innerNode_dimBits;
+#else
+      INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
+      const uniform size_t dim = intPtr[nodeID].x & 3;
+      // print("dim %\n",dim);
+#endif
       const uniform float plane_coord = THIS->particle[nodeID].position[dim];
       
-      const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rcp(dir[dim]);
-      const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+      const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rdir[dim];
+      const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rdir[dim];
 
       if (nodeID >= THIS->numInnerNodes) {
         // this is a leaf ...
@@ -218,7 +252,7 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
         float t_in_1 = t_in;
         float t_out_1 = t_out;
         uniform bool goNode1First = false;
-        if (dir[dim] > 0.f) {
+        if (rdir[dim] > 0.f) {
           t_out_0 = min(t_out_0,t_plane_0);
           t_in_1 = max(t_in_1,t_plane_1);
         } else {
@@ -226,8 +260,8 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
           t_in_0 = max(t_in_0,t_plane_0);
           goNode1First = true;
         }
-        uniform bool goNode0 = any(t_out_0 >= t_in_0);
-        uniform bool goNode1 = any(t_out_1 >= t_in_1);
+        uniform bool goNode0 = any(t_out_0 > t_in_0);
+        uniform bool goNode1 = any(t_out_1 > t_in_1);
         if (goNode0) {
           if (goNode1) {
             if (goNode1First) {
@@ -236,31 +270,31 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
               stack[stackPtr].t_in  = t_in_0;
               stack[stackPtr].t_out = t_out_0;
               stack[stackPtr].nodeID = 2*nodeID+1;
-              stack[stackPtr].depth = depth+1;
+              IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
               stackPtr++;
               t_in = t_in_1;
               t_out = t_out_1;
               nodeID = 2*nodeID+2;
-              ++depth;
+              IF_HAS_DEPTH(++depth);
             } else {
               unmasked { stack[stackPtr].t_in  = 1e20f; }
               unmasked { stack[stackPtr].t_out = -1e20f; }
               stack[stackPtr].t_in  = t_in_1;
               stack[stackPtr].t_out = t_out_1;
               stack[stackPtr].nodeID = 2*nodeID+2;
-              stack[stackPtr].depth = depth+1;
+              IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
               stackPtr++;
               t_in = t_in_0;
               t_out = t_out_0;
               nodeID = 2*nodeID+1;
-              ++depth;
+              IF_HAS_DEPTH(++depth);
             }
             continue;
           } else {
             t_in = t_in_0;
             t_out = t_out_0;
             nodeID = 2*nodeID+1;
-            ++depth;
+            IF_HAS_DEPTH(++depth);
             continue;
           }
         } else {
@@ -268,7 +302,7 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
             t_in = t_in_1;
             t_out = t_out_1;
             nodeID = 2*nodeID+2;
-            ++depth;
+            IF_HAS_DEPTH(++depth);
             continue;
           } else {
             break; // pop
@@ -284,7 +318,7 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
       t_out = min(stack[stackPtr].t_out,ray.t);
       if (all(t_in > t_out)) continue;
       nodeID = stack[stackPtr].nodeID;
-      depth  = stack[stackPtr].depth;
+      IF_HAS_DEPTH(depth  = stack[stackPtr].depth);
       break;
     };
   }
@@ -295,9 +329,6 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
                                  varying Ray &ray,
                                  uniform size_t primID)
 {
-#if 1
-  PartiKDGeometry_intersect_packet(THIS,ray,primID);
-#else
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
 
@@ -317,7 +348,7 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
   dir[2] = ray.dir.z;
 
   uniform size_t nodeID = 0;
-  const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_binBits;
+  const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
   while (1) {
     while (1) {
       if (t_out < t_in) break;
@@ -418,8 +449,8 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
       break;
     };
   }
-#endif
 }
+#endif
 
 
 export void *uniform PartiKDGeometry_create(void           *uniform cppEquivalent)
@@ -444,7 +475,7 @@ export void PartiKDGeometry_updateTransferFunction(void           *uniform _THIS
     if (alphaRange >= .5f)
       THIS->transferFunction_activeBinBits |= (1UL << i);
   }
-  print("#osp:pkd: new range bits: %\n",(void*uniform )THIS->transferFunction_activeBinBits);
+  // print("#osp:pkd: new range bits: %\n",(void*uniform )THIS->transferFunction_activeBinBits);
 }
 
 export void PartiKDGeometry_set(void       *uniform _geom,

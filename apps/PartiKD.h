@@ -62,6 +62,8 @@ namespace ospray {
     //! helper function for building - swap two particles in the model
     inline void swap(const size_t a, const size_t b) const;
 
+    // save the given particle's split dimension
+    void setDim(size_t ID, int dim) const;
   };
 
 }
