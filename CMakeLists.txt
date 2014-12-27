@@ -35,6 +35,7 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     apps/ParticleModel.cpp
     #importers
     apps/ImportUIntah.cpp
+    apps/ImportXYZ.cpp
     )
   TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------

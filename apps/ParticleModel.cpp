@@ -20,6 +20,21 @@ namespace ospray {
 
   // file importers
   namespace uintah { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace xyz { void importModel(ParticleModel *model, const embree::FileName &s); }
+
+  /*! helper function that creates a pseudo-random color for a given
+      ID; this is used to generate initial colors for atom types, if
+      the model file doesn't specify these colors explicitly */
+  inline vec3f makeRandomColor(const int i)
+  {
+    const int mx = 13*17*43;
+    const int my = 11*29;
+    const int mz = 7*23*63;
+    const uint32 g = (i * (3*5*127)+12312314);
+    return vec3f((g % mx)*(1.f/(mx-1)),
+                 (g % my)*(1.f/(my-1)),
+                 (g % mz)*(1.f/(mz-1)));
+  }
 
   //! \brief load a model (using the built-in model importers for
   //! various file formats). throw an exception if this cannot be
@@ -34,9 +49,24 @@ namespace ospray {
     } else if (fn.ext() == "xml") {
       // assume uintah format
       uintah::importModel(this,fn);
+    } else if (fn.ext() == "xyz") {
+      // assume uintah format
+      xyz::importModel(this,fn);
     } else {
       throw std::runtime_error("unknonw file format '"+fn.str()+"'");
     }
+  }
+
+  uint32 ParticleModel::getAtomTypeID(const std::string &name)
+  {
+    if (atomTypeByName.find(name) == atomTypeByName.end()) {
+      if (name != "Default") std::cout << "New atom type '"+name+"'" << std::endl;
+      ParticleModel::AtomType *a = new ParticleModel::AtomType(name);
+      a->color = makeRandomColor(atomType.size());
+      atomTypeByName[name] = atomType.size();
+      atomType.push_back(a);
+    }
+    return atomTypeByName[name];
   }
 
   //! helper function for parser error recovery: 'clamp' all attributes to largest non-empty attribute

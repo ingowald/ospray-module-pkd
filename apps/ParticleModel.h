@@ -44,11 +44,19 @@ namespace ospray {
       float              minValue, maxValue;
       std::vector<float> value;
     };
-    struct Type {
+    struct AtomType {
       std::string name;
       vec3f       color;
+
+      AtomType(const std::string &name) : name(name), color(1,0,0) {}
     };
-    std::map<std::string, Type *> typeMap;
+    
+    //! list of all declared atom types
+    std::vector<AtomType *>           atomType;
+    //! mapper that maps an atom type name to the ID in the 'atomType' vector
+    std::map<std::string, int32> atomTypeByName;
+
+    uint32 getAtomTypeID(const std::string &name);
 
     std::vector<vec_t> position;   //!< particle position
     std::vector<int>   type;       //!< 'type' of particle (e.g., the atom type for atomistic models)
