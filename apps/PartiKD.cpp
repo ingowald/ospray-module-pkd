@@ -376,6 +376,7 @@ namespace ospray {
     //   fprintf(xml,"<transferFunction><LinearTransferFunction/></transferFunction>\n");
     if (model->radius > 0.)
       fprintf(xml,"<radius>%f</radius>\n",model->radius);
+    fprintf(xml,"<useOldAlphaSpheresCode value=\"0\"/>\n");
     fprintf(xml,"</PKDGeometry>\n");
   }
 

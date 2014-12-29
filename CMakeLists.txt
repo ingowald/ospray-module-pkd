@@ -27,6 +27,10 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
   OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
     ospray/PKDGeometry.cpp
     ospray/PKDGeometry.ispc
+    ospray/MinMaxBVH2.cpp
+    ospray/MinMaxBVH2.ispc
+    ospray/AlphaSpheres.cpp
+    ospray/AlphaSpheres.ispc
     )
   TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
 
