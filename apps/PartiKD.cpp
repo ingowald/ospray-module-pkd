@@ -318,7 +318,7 @@ namespace ospray {
 
   void PartiKD::build(ParticleModel *model) 
   {
-    assert(!this-model);
+    assert(this->model == NULL);
     assert(model);
     this->model = model;
 
