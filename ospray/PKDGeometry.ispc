@@ -18,9 +18,9 @@
 #include "ospray/math/vec.ih"
 #include "ospray/math/bbox.ih"
 #include "ospray/common/Ray.ih"
-#include "ospray/geometry/geometry.ih"
+#include "ospray/geometry/Geometry.ih"
 #include "ospray/common/Model.ih"
-#include "ospray/transferfunction/LinearTransferFunction.ih"
+#include "ospray/transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
 // embree
