@@ -42,8 +42,8 @@
 #define DO_STATS 0
 #if DO_STATS
 # define STATS(a) a
- uniform int64 dbg_numIntersections = 0;
- uniform int64 dbg_numRays = 0;
+uniform int64 dbg_numIntersections = 0;
+uniform int64 dbg_numRays = 0;
 uniform int64 dbg_it0 = 0;
 uniform int64 dbg_it1 = 0;
 uniform int64 dbg_it2 = 0;
@@ -131,9 +131,9 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   const float radius = THIS->particleRadius;
   // uniform vec3f center = (uniform vec3f &)THIS->particle[primID].position;
   const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
-// THIS->particle[primID].position[0],
-//                                   THIS->particle[primID].position[1],
-//                                   THIS->particle[primID].position[2]);
+  // THIS->particle[primID].position[0],
+  //                                   THIS->particle[primID].position[1],
+  //                                   THIS->particle[primID].position[2]);
   
   // perform first half of intersection test ....
   const vec3f A = center - ray.org;
@@ -300,7 +300,6 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       const float t_farChild_in   = max(t_in,t_plane_nr);
       const float t_farChild_out  = t_out;
       const float t_nearChild_out = min(t_out,t_plane_fr);
-
 #if 1
       // catch the case where all ray segments are on far side
       if (none(t_in < t_nearChild_out)) {
@@ -362,7 +361,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
     // couldn't go down any further; pop a node from stack
     // ------------------------------------------------------------------
     
-      STATS(dbg_it4++);
+    STATS(dbg_it4++);
     // print("Popping...\n");
     while (1) {
       // pop as long as we have to ... or until nothing is left to pop.
@@ -372,8 +371,8 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
         return;
       }
       // unmasked { 
-        t_in   = stackPtr[-1].t_in;
-        t_out  = min(stackPtr[-1].t_out,ray.t);
+      t_in   = stackPtr[-1].t_in;
+      t_out  = min(stackPtr[-1].t_out,ray.t);
       // }
       -- stackPtr;
 
@@ -389,7 +388,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
         PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
         if (isShadowRay && ray.primID >= 0) return;
       } 
-// else print("skipping culled sphere\n");
+      // else print("skipping culled sphere\n");
 
       STATS(dbg_it7++);
       // do the distance test again, we might just have shortened the ray...
@@ -420,7 +419,7 @@ inline void PartiKDGeometry_kd_intersect_packet(uniform PartiKDGeometry *uniform
 
   const varying float rdir[3] = { safe_rcp(ray.dir.x),safe_rcp(ray.dir.y),safe_rcp(ray.dir.z) };
   const varying float org[3]  = { ray.org.x, ray.org.y, ray.org.z };
-// #if 1
+  // #if 1
   uniform size_t dir_sign[3];
   if (ray.dir.z > 0.f) {
     dir_sign[2] = 0;
@@ -465,7 +464,7 @@ inline void PartiKDGeometry_kd_intersect_packet(uniform PartiKDGeometry *uniform
       }
     }
   }
-// #else
+  // #else
   // varying int   dir_sign_z = (ray.dir.z < 0.f); 
   // varying int   dir_sign_y = (ray.dir.y < 0.f); 
   // varying int   dir_sign_x = (ray.dir.x < 0.f); 
@@ -480,13 +479,13 @@ inline void PartiKDGeometry_kd_intersect_packet(uniform PartiKDGeometry *uniform
   //     }
   //   }
   // }
-// #endif
+  // #endif
 }
 
 
 void PartiKDGeometry_kd_occluded_packet(uniform PartiKDGeometry *uniform THIS,
-                                     varying Ray &ray,
-                                     uniform size_t primID)
+                                        varying Ray &ray,
+                                        uniform size_t primID)
 {
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
