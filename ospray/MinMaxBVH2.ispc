@@ -15,7 +15,7 @@
 // ======================================================================== //
 
 #include "MinMaxBVH2.ih"
-#include "ospray/transferfunction/LinearTransferFunction.ih"
+#include "ospray/transferFunction/LinearTransferFunction.ih"
 
 #define DBG(a) /**/
 

@@ -18,7 +18,7 @@
 
 // ospray core
 #include "ospray/geometry/Geometry.h"
-#include "ospray/transferfunction/TransferFunction.h"
+#include "ospray/transferFunction/TransferFunction.h"
 // our bvh
 #include "MinMaxBVH2.h"
 

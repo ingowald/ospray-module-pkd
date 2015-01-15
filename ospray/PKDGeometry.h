@@ -18,7 +18,7 @@
 
 #include "ospray/geometry/Geometry.h"
 #include "ospray/common/Data.h"
-#include "ospray/transferfunction/TransferFunction.h"
+#include "ospray/transferFunction/TransferFunction.h"
 
 namespace ospray {
 
