@@ -202,7 +202,9 @@ struct ThreePhaseStackEntry {
   varying float t_in, t_out, t_sphere_out;
   uniform size_t sphereID;
   uniform size_t farChildID;
+#if DIM_FROM_DEPTH
   uniform int32  dim;
+#endif
 };
 
 
@@ -315,19 +317,21 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       // const float t_nearChild_in  = t_in;
       // const float t_nearChild_out = min(t_out,t_plane_fr);
       t_out = t_nearChild_out; 
+#if DIM_FROM_DEPTH
       dim = (dim == 2)?0:dim+1;
       // const uniform size_t nextDim = (dim == 2)?0:dim+1;
       
-      unmasked {
-        stackPtr->dim        = dim; //nextDim;
-        stackPtr->sphereID   = nodeID;
-      }
+      stackPtr->dim        = dim; //nextDim;
+#endif
+      stackPtr->sphereID   = nodeID;
+
+#if 0
+      stackPtr += any(t_farChild_in < t_farChild_out);
+#else
       if (any(t_farChild_in < t_farChild_out)) {
-        // could actually do those writes, anyway (even when not
-        // actuaqlly going into this subtree), thus interleaving
-        // them with the computations above.
         ++stackPtr;
       }
+#endif
       
       STATS(dbg_it2++);
       nodeID = min(2*nodeID+1+sign,numParticles-1);
@@ -352,10 +356,10 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
         // print("DONE\n");
         return;
       }
-      unmasked { 
+      // unmasked { 
         t_in   = stackPtr[-1].t_in;
         t_out  = min(stackPtr[-1].t_out,ray.t);
-      }
+      // }
       -- stackPtr;
 
       // check if the node is still active (all the traversal since it
@@ -366,18 +370,19 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       STATS(dbg_it6++);
       // print("pop - intersect %\n",stackPtr->sphereID);
       // intersect the actual node...
-      if (t_in < min(stackPtr->t_sphere_out,ray.t)) 
-        {
+      if (t_in < min(stackPtr->t_sphere_out,ray.t)) {
         PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
         if (isShadowRay && ray.primID >= 0) return;
-        } 
+      } 
 // else print("skipping culled sphere\n");
 
       STATS(dbg_it7++);
       // do the distance test again, we might just have shortened the ray...
       unmasked { t_out  = min(t_out,ray.t); }
       nodeID = min(stackPtr->farChildID,numParticles-1);
+#if DIM_FROM_DEPTH
       dim    = stackPtr->dim;
+#endif
       break;
       // if (any(t_in < t_out)) {
       //   break;
