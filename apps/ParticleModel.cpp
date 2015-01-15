@@ -46,6 +46,13 @@ namespace ospray {
       std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;
       for (int i=0;i<num;i++)
         position.push_back(vec3f(drand48(),drand48(),drand48()));
+    } else if (fn.ext() == "REGULAR") {
+      size_t num = atol(fn.str().c_str());
+      std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;
+      for (int z=0;z<num;z++)
+        for (int y=0;y<num;y++)
+          for (int x=0;x<num;x++)
+            position.push_back(vec3f(x,y,z));
     } else if (fn.ext() == "xml") {
       // assume uintah format
       uintah::importModel(this,fn);

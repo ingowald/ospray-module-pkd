@@ -40,10 +40,11 @@ inline uniform bool rangeIsInteresting(TransferFunction *uniform xf,
   node_range_hi = (node_range_hi-all_range_lo) * rcp(all_range_hi-all_range_lo);
 
   // evaluate alpha range for normalized attribute range
-  uniform float maxOpacity = getMaxOpacityForRange((LinearTransferFunction*uniform)xf,node_range_lo,node_range_hi);
+  vec2f range = make_vec2f(node_range_lo,node_range_hi);
+  float maxOpacity = xf->getMaxOpacityInRange((TransferFunction*uniform)xf,range);
 
   // cull if max range (range.y) is below .5f
-  return maxOpacity/*max range*/ >= .5f;
+  return any(maxOpacity/*max range*/ >= .5f);
 }
 
 inline bool intersects(const Ray &ray, 

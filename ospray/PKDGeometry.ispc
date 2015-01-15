@@ -37,11 +37,30 @@
   we'll use the lower two mantissa bits of the particle's x
   coordinate for the split plane dimesnsion (this assumes that the
   pkd tree has been built as such */
-#define DIM_FROM_DEPTH 1
+//#define DIM_FROM_DEPTH 1
+
+#define DO_STATS 0
+#if DO_STATS
+# define STATS(a) a
+ uniform int64 dbg_numIntersections = 0;
+ uniform int64 dbg_numRays = 0;
+uniform int64 dbg_it0 = 0;
+uniform int64 dbg_it1 = 0;
+uniform int64 dbg_it2 = 0;
+uniform int64 dbg_it3 = 0;
+uniform int64 dbg_it4 = 0;
+uniform int64 dbg_it5 = 0;
+uniform int64 dbg_it6 = 0;
+uniform int64 dbg_it7 = 0;
+uniform int64 dbg_it8 = 0;
+#else
+# define STATS(a)
+#endif
 
 
-// uniform int64 dbg_numIntersections = 0;
-// uniform int64 dbg_numRays = 0;
+inline float safe_rcp(float f) {
+  return (abs(f) < 1e-10f)?1e10f:rcp(f);
+}
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,
@@ -103,7 +122,7 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
                                            uniform size_t primID,
                                            varying Ray &ray)
 {
-  // dbg_numIntersections++;
+  STATS(dbg_numIntersections++);
   //  print("isecprim\n");
   // typecast "implicit THIS" pointer to the proper geometry type
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
@@ -180,7 +199,7 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
 
 
 struct ThreePhaseStackEntry {
-  varying float t_in, t_out;
+  varying float t_in, t_out, t_sphere_out;
   uniform size_t sphereID;
   uniform size_t farChildID;
   uniform int32  dim;
@@ -196,6 +215,33 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
                                    const uniform bool isShadowRay
                                    )
 {
+#if DO_STATS
+  dbg_numRays++;
+  if (dbg_numRays >= 3000000) {
+    print("num spheres per ray: %\n",(float)dbg_numIntersections/((float)dbg_numRays));
+    print("it0/ray\t%\n",((float)dbg_it0/(float)dbg_numRays));
+    print("it1/ray\t%\n",((float)dbg_it1/(float)dbg_numRays));
+    print("it2/ray\t%\n",((float)dbg_it2/(float)dbg_numRays));
+    print("it3/ray\t%\n",((float)dbg_it3/(float)dbg_numRays));
+    print("it4/ray\t%\n",((float)dbg_it4/(float)dbg_numRays));
+    print("it5/ray\t%\n",((float)dbg_it5/(float)dbg_numRays));
+    print("it6/ray\t%\n",((float)dbg_it6/(float)dbg_numRays));
+    print("it7/ray\t%\n",((float)dbg_it7/(float)dbg_numRays));
+    print("it8/ray\t%\n",((float)dbg_it8/(float)dbg_numRays));
+    dbg_numRays = 0;
+    dbg_numIntersections = 0;
+    dbg_it0 = 0;
+    dbg_it1 = 0;
+    dbg_it2 = 0;
+    dbg_it3 = 0;
+    dbg_it4 = 0;
+    dbg_it5 = 0;
+    dbg_it6 = 0;
+    dbg_it7 = 0;
+    dbg_it8 = 0;
+  }
+#endif
+
   varying ThreePhaseStackEntry stack[64];
   varying ThreePhaseStackEntry *uniform stackPtr = stack;
   
@@ -214,8 +260,12 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
     // do traversal step(s) as long as possible
     // ------------------------------------------------------------------
     // print("outer % % %\n",nodeID,t_in,t_out);
+    STATS(dbg_it0++);
     while (1) {    
+      if (t_in > t_out) break;
+
       // print("inner node % dim % range % %\n",nodeID,dim,t_in,t_out);
+      STATS(dbg_it1++);
       if (nodeID >= numInnerNodes) {
         // print("LEAF prim %\n",nodeID);
         // this is a leaf node - can't to to a leaf, anyway. Intersect the prim, and be done with it.
@@ -224,6 +274,13 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
         break;
       } 
       
+
+#if !DIM_FROM_DEPTH
+      INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
+      dim = intPtr[nodeID].x & 3;
+#endif
+
+
       const uniform size_t sign = dir_sign[dim];
       // print("sign %\n",sign);
       
@@ -235,73 +292,62 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       const float t_plane_1  = (org_to_node_dim + radius) * rdir[dim];
       const float t_plane_nr = min(t_plane_0,t_plane_1);
       const float t_plane_fr = max(t_plane_0,t_plane_1);
-
+      
       // print("t_plane % %\n",t_plane_nr,t_plane_fr);
 
+      const float t_farChild_in   = max(t_in,t_plane_nr);
+      const float t_farChild_out  = t_out;
+      const float t_nearChild_out = min(t_out,t_plane_fr);
       unmasked { 
-        const float t_farChild_in   = max(t_in,t_plane_nr);
-        const float t_farChild_out  = t_out;
-      
-        stackPtr->t_in       = t_farChild_in;
-        stackPtr->t_out      = t_farChild_out;
+        // stackPtr->t_in       = t_farChild_in;
+        // stackPtr->t_out      = t_farChild_out;
+        // stackPtr->t_sphere_out = t_nearChild_out;
+        stackPtr->t_in = 1e20f;
+        stackPtr->t_out = -1e20f;
+        stackPtr->t_sphere_out = -1e20f;
       }
+      stackPtr->farChildID = 2*nodeID+2-sign;
+      
+      stackPtr->t_in       = t_farChild_in;
+      stackPtr->t_out      = t_farChild_out;
+      stackPtr->t_sphere_out = t_nearChild_out;
 
       // const float t_nearChild_in  = t_in;
       // const float t_nearChild_out = min(t_out,t_plane_fr);
-      unmasked { t_out = min(t_out,t_plane_fr); }
+      t_out = t_nearChild_out; 
       dim = (dim == 2)?0:dim+1;
       // const uniform size_t nextDim = (dim == 2)?0:dim+1;
       
       unmasked {
         stackPtr->dim        = dim; //nextDim;
         stackPtr->sphereID   = nodeID;
-        stackPtr->farChildID = 2*nodeID+2-sign;
       }
-      if (any(t_farChild_in <= t_farChild_out)) {
+      if (any(t_farChild_in < t_farChild_out)) {
         // could actually do those writes, anyway (even when not
         // actuaqlly going into this subtree), thus interleaving
         // them with the computations above.
         ++stackPtr;
       }
       
-#if 0
+      STATS(dbg_it2++);
       nodeID = min(2*nodeID+1+sign,numParticles-1);
-      if (all(t_nearChild_in >= t_nearChild_out)) break;
-#else
-      nodeID = 2*nodeID+1+sign;
-      if (// cannot go down greedily, go to popping.
-          all(t_in >= t_out)
-          // all(t_nearChild_in >= t_nearChild_out)
-          ||
-          // check if NEAR child exists. so far (from the tests above)
-          // we only know that SOME child exists, and that we should go
-          // to the near one if it does exist.... but we might still be
-          // in the corner case that we only have a single child, and it
-          // is the far one.... so let's check that here. (OPTIMIZATION:
-          // alternatively, we might simply set childID to
-          // min(childID,numParticles-1) - then in the worst case we'll
-          // doubly intersect this one particle, which shouldn't hurt
-          // (and is pretty unlikely)
-          (nodeID >= numParticles)
-          ) {
+      if (none(t_in < t_out)) {
+        STATS(dbg_it8++);
         break;
       }
-#endif
-      
-      // unmasked {
-      //   t_in   = t_nearChild_in;
-      //   t_out  = t_nearChild_out;
-      // }
-      // dim    = nextDim;
+
+      STATS(dbg_it3++);
       continue;
     }
     // ------------------------------------------------------------------
     // couldn't go down any further; pop a node from stack
     // ------------------------------------------------------------------
     
+      STATS(dbg_it4++);
     // print("Popping...\n");
     while (1) {
       // pop as long as we have to ... or until nothing is left to pop.
+      STATS(dbg_it5++);
       if (stackPtr == stack) {
         // print("DONE\n");
         return;
@@ -317,18 +363,26 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       if (none(t_in < t_out))
         continue;
 
+      STATS(dbg_it6++);
       // print("pop - intersect %\n",stackPtr->sphereID);
       // intersect the actual node...
-      PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
-      if (isShadowRay && ray.primID >= 0) return;
+      if (t_in < min(stackPtr->t_sphere_out,ray.t)) 
+        {
+        PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
+        if (isShadowRay && ray.primID >= 0) return;
+        } 
+// else print("skipping culled sphere\n");
 
+      STATS(dbg_it7++);
       // do the distance test again, we might just have shortened the ray...
       unmasked { t_out  = min(t_out,ray.t); }
       nodeID = min(stackPtr->farChildID,numParticles-1);
       dim    = stackPtr->dim;
-      if (any(t_in < t_out)) {
-        break;
-      }
+      break;
+      // if (any(t_in < t_out)) {
+      //   break;
+      // }
+      STATS(dbg_it8++);
     }
   }
 }
@@ -344,7 +398,7 @@ inline void PartiKDGeometry_kd_intersect_packet(uniform PartiKDGeometry *uniform
   if (t_in >= t_out)
     return;
 
-  const varying float rdir[3] = { rcp(ray.dir.x),rcp(ray.dir.y),rcp(ray.dir.z) };
+  const varying float rdir[3] = { safe_rcp(ray.dir.x),safe_rcp(ray.dir.y),safe_rcp(ray.dir.z) };
   const varying float org[3]  = { ray.org.x, ray.org.y, ray.org.z };
 // #if 1
   uniform size_t dir_sign[3];
@@ -420,7 +474,7 @@ void PartiKDGeometry_kd_occluded_packet(uniform PartiKDGeometry *uniform THIS,
   if (t_out < t_in)
     return;
   
-  const varying float rdir[3] = { rcp(ray.dir.x),rcp(ray.dir.y),rcp(ray.dir.z) };
+  const varying float rdir[3] = { safe_rcp(ray.dir.x),safe_rcp(ray.dir.y),safe_rcp(ray.dir.z) };
   const varying float org[3]  = { ray.org.x, ray.org.y, ray.org.z };
 
   uniform size_t dir_sign[3];
@@ -492,9 +546,9 @@ void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
   org[0] = ray.org.x;
   org[1] = ray.org.y;
   org[2] = ray.org.z;
-  rdir[0] = rcp(ray.dir.x);
-  rdir[1] = rcp(ray.dir.y);
-  rdir[2] = rcp(ray.dir.z);
+  rdir[0] = safe_rcp(ray.dir.x);
+  rdir[1] = safe_rcp(ray.dir.y);
+  rdir[2] = safe_rcp(ray.dir.z);
 
   uniform size_t nodeID = 0;
   const uniform uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
@@ -662,8 +716,8 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
         const uniform size_t dim = depth % 3; //THIS->innerNodeInfo[nodeID] >> 30;
         const uniform float plane_coord = THIS->particle[nodeID].position[dim];
 
-        const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rcp(dir[dim]);
-        const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+        const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
+        const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
         
         float t_in_0 = t_in;
         float t_out_0 = t_out;
@@ -759,12 +813,13 @@ export void PartiKDGeometry_updateTransferFunction(void           *uniform _THIS
                                                    void           *uniform _transferFunction)
 {
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)_THIS;
-  LinearTransferFunction *uniform transferFunction = (LinearTransferFunction *uniform)_transferFunction;
+  TransferFunction *uniform transferFunction = (TransferFunction *uniform)_transferFunction;
   THIS->transferFunction_activeBinBits = 0;
   for (uniform int i=0;i<32;i++) {
     uniform float a0 = i/32.f;
     uniform float a1 = (i+1)/32.f - 1e-5f;
-    uniform float alphaRange = getMaxOpacityForRange(transferFunction,a0,a1);
+    vec2f range = make_vec2f(a0,a1);
+    uniform float alphaRange = extract(transferFunction->getMaxOpacityInRange(transferFunction,range),0);
     if (alphaRange >= .5f)
       THIS->transferFunction_activeBinBits |= (1UL << i);
   }

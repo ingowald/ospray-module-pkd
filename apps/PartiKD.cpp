@@ -16,10 +16,10 @@
 
 #include "PartiKD.h"
 
-//#define CHECK 1
+#define CHECK 1
 
-#define DIM_FROM_DEPTH 1
-#define DIM_ROUND_ROBIN 1
+//#define DIM_FROM_DEPTH 1
+// #define DIM_ROUND_ROBIN 1
 
 namespace ospray {
   using std::endl;
@@ -104,6 +104,7 @@ namespace ospray {
     const size_t dim = depth % 3;
 #else
     const size_t dim = embree::maxDim(bounds.size());
+    if (depth < 4) { PRINT(bounds); printf("depth %ld-> dim %ld\n",depth,dim); }
 #endif
     const size_t N = numParticles;
 #if FAST
@@ -292,7 +293,7 @@ namespace ospray {
       
     lBounds.upper[dim] = rBounds.lower[dim] = pos(nodeID,dim);
 
-#if 1
+#if 0
     if ((numLevels - depth) > 20) {
       pthread_t lThread,rThread;
       pthread_create(&lThread,NULL,pkdBuildThread,new PKDBuildJob(this,leftChildOf(nodeID),lBounds,depth+1));
@@ -322,9 +323,21 @@ namespace ospray {
     assert(model);
     this->model = model;
 
+
     assert(!model->position.empty());
     numParticles = model->position.size();
     assert(numParticles <= (1ULL << 31));
+
+#if 0
+    cout << "#osp:pkd: TEST: RANDOMIZING PARTICLES" << endl;
+    for (size_t i=numParticles-1;i>0;--i) {
+      size_t j = size_t(drand48()*i);
+      if (i != j) swap(i,j);
+    }
+    cout << "#osp:pkd: RANDOMIZED" << endl;
+#endif
+
+
 
     numInnerNodes = numInnerNodesOf(numParticles);
 

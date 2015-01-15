@@ -65,7 +65,7 @@ namespace ospray {
     positionData      = getParamData("particles",NULL);
     transferFunction  = (TransferFunction *)getParamObject("transferFunction",NULL);
     
-    if (positionData == NULL) 
+    if (!positionData) 
       throw std::runtime_error("#osp:AlphaParticless: no 'particles' data specified");
     // if (attributeData == NULL) 
     //   throw std::runtime_error("#osp:AlphaAttributes: no 'attribute' data specified");
