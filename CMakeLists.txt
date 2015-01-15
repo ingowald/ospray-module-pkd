@@ -18,7 +18,6 @@ CONFIGURE_OSPRAY()
 
 # mini-scene graph viewer for _geometry_ (intentionally simple)
 OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
-IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
 
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
@@ -32,8 +31,9 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     ospray/AlphaSpheres.cpp
     ospray/AlphaSpheres.ispc
     )
-  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
+  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ${LIBS})
 
+IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
   ADD_EXECUTABLE(ospPartiKD
     apps/PartiKD.cpp
     apps/ParticleModel.cpp
@@ -41,6 +41,6 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     apps/ImportUIntah.cpp
     apps/ImportXYZ.cpp
     )
-  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
+  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX}  ospray_xml${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------
 ENDIF()
