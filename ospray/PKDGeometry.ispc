@@ -300,6 +300,21 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       const float t_farChild_in   = max(t_in,t_plane_nr);
       const float t_farChild_out  = t_out;
       const float t_nearChild_out = min(t_out,t_plane_fr);
+
+#if 1
+      // catch the case where all ray segments are on far side
+      if (none(t_in < t_nearChild_out)) {
+        if (none(t_farChild_in < t_farChild_out)) {
+          break;
+        } else {
+          t_in  = t_farChild_in;
+          t_out = t_farChild_out;
+          nodeID = 2*nodeID+2-sign;
+          continue;
+        }
+      }
+#endif
+
       unmasked { 
         // stackPtr->t_in       = t_farChild_in;
         // stackPtr->t_out      = t_farChild_out;
@@ -334,11 +349,11 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
 #endif
       
       STATS(dbg_it2++);
-      nodeID = min(2*nodeID+1+sign,numParticles-1);
       if (none(t_in < t_out)) {
         STATS(dbg_it8++);
         break;
       }
+      nodeID = min(2*nodeID+1+sign,numParticles-1);
 
       STATS(dbg_it3++);
       continue;
