@@ -30,8 +30,9 @@
 
 #include "ospray/common/Box.ih"
 
+//#define ADDTL_CULLING 1
 /*! if enabled, we use a naive SPMD traversal where each lane does its own traversal */
-#define USE_NAIVE_SPMD_TRAVERSAL 0
+// #define USE_NAIVE_SPMD_TRAVERSAL 0
 
 /*! if defined, we'll use 'depth%3' for the partition dim; if not,
   we'll use the lower two mantissa bits of the particle's x
@@ -122,6 +123,7 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
                                            uniform size_t primID,
                                            varying Ray &ray)
 {
+  // numIsec++;
   STATS(dbg_numIntersections++);
   //  print("isecprim\n");
   // typecast "implicit THIS" pointer to the proper geometry type
@@ -188,14 +190,151 @@ varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
 }
 
 
-#if USE_NAIVE_SPMD_TRAVERSAL 
-#else
+// #if USE_NAIVE_SPMD_TRAVERSAL 
+// #else
 
 #if DIM_FROM_DEPTH
 # define IF_HAS_DEPTH(a) a
 #else
 # define IF_HAS_DEPTH(a) 
 #endif
+
+
+
+struct PartiKDStackEntry {
+  varying float t_in, t_out;
+  uniform size_t nodeID;
+};
+
+
+void PartiKDGeometry_intersect_old(uniform PartiKDGeometry *uniform THIS,
+                                   varying Ray &ray,
+                                   uniform size_t primID,
+                                   uniform bool isShadowRay)
+{
+
+  float t_in = ray.t0, t_out = ray.t;
+  boxtest(ray,THIS->sphereBounds,t_in,t_out);
+  
+  if (t_out < t_in) return;
+  // print("t % %\n",t_in,t_out);
+
+  PartiKDStackEntry stack[64];
+  uniform int32 stackPtr = 0;
+
+  float org[3], dir[3];
+  org[0] = ray.org.x;
+  org[1] = ray.org.y;
+  org[2] = ray.org.z;
+  dir[0] = ray.dir.x;
+  dir[1] = ray.dir.y;
+  dir[2] = ray.dir.z;
+
+  uniform size_t nodeID = 0;
+  while (1) {
+    while (1) {
+      if (t_out < t_in) break;
+      if (nodeID >= THIS->numInnerNodes) {
+        // this is a leaf ...
+// varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
+//                                            uniform size_t primID,
+//                                            varying Ray &ray)
+
+        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+        break; // pop
+      } else {
+        // const uniform int32  binBits = THIS->innerNodeInfo[nodeID] & ((1<<30)-1);
+        // if ((THIS->activeBinBits & binBits) == 0)
+        //   break;
+        
+        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+        t_out = min(t_out,ray.t);
+        
+        // const uniform size_t dim = THIS->innerNodeInfo[nodeID] >> 30;
+#if !DIM_FROM_DEPTH
+        INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
+        const uniform size_t dim = intPtr[nodeID].x & 3;
+#endif
+        const uniform float plane_coord = THIS->particle[nodeID].position[dim];
+
+        const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+        const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * rcp(dir[dim]);
+        
+        float t_in_0 = t_in;
+        float t_out_0 = t_out;
+
+        float t_in_1 = t_in;
+        float t_out_1 = t_out;
+        uniform bool goNode1First = false;
+        if (dir[dim] > 0.f) {
+          t_out_0 = min(t_out_0,t_plane_0);
+          t_in_1 = max(t_in_1,t_plane_1);
+        } else {
+          t_out_1 = min(t_out_1,t_plane_1);
+          t_in_0 = max(t_in_0,t_plane_0);
+          goNode1First = true;
+        }
+        uniform bool goNode0 = any(t_out_0 >= t_in_0);
+        uniform bool goNode1 = any(t_out_1 >= t_in_1);
+        if (goNode0) {
+          if (goNode1) {
+            if (goNode1First) {
+              unmasked { stack[stackPtr].t_in  = 1e20f; }
+              unmasked { stack[stackPtr].t_out = -1e20f; }
+              stack[stackPtr].t_in  = t_in_0;
+              stack[stackPtr].t_out = t_out_0;
+              stack[stackPtr].nodeID = 2*nodeID+1;
+              stackPtr++;
+              t_in = t_in_1;
+              t_out = t_out_1;
+              nodeID = 2*nodeID+2;
+            } else {
+              unmasked { stack[stackPtr].t_in  = 1e20f; }
+              unmasked { stack[stackPtr].t_out = -1e20f; }
+              stack[stackPtr].t_in  = t_in_1;
+              stack[stackPtr].t_out = t_out_1;
+              stack[stackPtr].nodeID = 2*nodeID+2;
+              stackPtr++;
+              t_in = t_in_0;
+              t_out = t_out_0;
+              nodeID = 2*nodeID+1;
+            }
+            continue;
+          } else {
+            t_in = t_in_0;
+            t_out = t_out_0;
+            nodeID = 2*nodeID+1;
+            continue;
+          }
+        } else {
+          if (goNode1) {
+            t_in = t_in_1;
+            t_out = t_out_1;
+            nodeID = 2*nodeID+2;
+            continue;
+          } else {
+            break; // pop
+          }
+        }
+      }
+    }
+    // TODO: pop
+    while (1) {
+      if (stackPtr == 0) return;
+      --stackPtr;
+      t_in = stack[stackPtr].t_in;
+      t_out = min(stack[stackPtr].t_out,ray.t);
+      if (all(t_in > t_out)) continue;
+      nodeID = stack[stackPtr].nodeID;
+      break;
+    };
+  }
+}
+
+
+
+
+
 
 
 struct ThreePhaseStackEntry {
@@ -208,6 +347,8 @@ struct ThreePhaseStackEntry {
 };
 
 
+// uniform size_t maxStackDepth = 0;
+// extern uniform bool do_dbg;
 
 inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
                                    varying Ray &ray,
@@ -217,6 +358,8 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
                                    const uniform bool isShadowRay
                                    )
 {
+  // uniform bool dbg = 0; //do_dbg;
+
 #if DO_STATS
   dbg_numRays++;
   if (dbg_numRays >= 3000000) {
@@ -244,7 +387,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
   }
 #endif
 
-  varying ThreePhaseStackEntry stack[64];
+  varying ThreePhaseStackEntry stack[32];
   varying ThreePhaseStackEntry *uniform stackPtr = stack;
   
   uniform size_t nodeID = 0;
@@ -256,21 +399,74 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
   const uniform size_t numInnerNodes = THIS->numInnerNodes;
   const uniform size_t numParticles  = THIS->numParticles;
   const uniform PKDParticle *uniform const particle = THIS->particle;
-  // print("new traversal % %\n",t_in,t_out);
+  //if (dbg) print("new traversal % %\n",t_in,t_out);
   while (1) {
     // ------------------------------------------------------------------
     // do traversal step(s) as long as possible
     // ------------------------------------------------------------------
-    // print("outer % % %\n",nodeID,t_in,t_out);
+    //if (dbg) print("outer % % %\n",nodeID,t_in,t_out);
     STATS(dbg_it0++);
     while (1) {    
+// #if 1
+//       uniform size_t stackDepth = stackPtr-stack;
+//       if (stackDepth > maxStackDepth) {
+//         maxStackDepth = stackDepth;
+//         //if (dbg) print("MAX STACK DEPTH: %\n",maxStackDepth);
+//       }
+// #endif
+
       if (t_in > t_out) break;
 
-      // print("inner node % dim % range % %\n",nodeID,dim,t_in,t_out);
+      //if (dbg) print("inner node % dim % range % %\n",nodeID,dim,t_in,t_out);
       STATS(dbg_it1++);
       if (nodeID >= numInnerNodes) {
-        // print("LEAF prim %\n",nodeID);
+        //if (dbg) print("LEAF prim %\n",nodeID);
         // this is a leaf node - can't to to a leaf, anyway. Intersect the prim, and be done with it.
+
+
+#if ADDTL_CULLING
+      const float org_to_node_x = particle[nodeID].position[0] - org[0];
+      const float t_plane_0_x  = (org_to_node_x - radius) * rdir[0];
+      const float t_plane_1_x  = (org_to_node_x + radius) * rdir[0];
+      const float t_plane_nr_x = min(t_plane_0_x,t_plane_1_x);
+      const float t_plane_fr_x = max(t_plane_0_x,t_plane_1_x);
+
+      const float org_to_node_y = particle[nodeID].position[1] - org[1];
+      const float t_plane_0_y  = (org_to_node_y - radius) * rdir[1];
+      const float t_plane_1_y  = (org_to_node_y + radius) * rdir[1];
+      const float t_plane_nr_y = min(t_plane_0_y,t_plane_1_y);
+      const float t_plane_fr_y = max(t_plane_0_y,t_plane_1_y);
+
+      const float org_to_node_z = particle[nodeID].position[2] - org[2];
+      const float t_plane_0_z  = (org_to_node_z - radius) * rdir[2];
+      const float t_plane_1_z  = (org_to_node_z + radius) * rdir[2];
+      const float t_plane_nr_z = min(t_plane_0_z,t_plane_1_z);
+      const float t_plane_fr_z = max(t_plane_0_z,t_plane_1_z);
+
+
+        // const float plane_coord_x = THIS->particle[nodeID].position[0];
+        // const float plane_coord_y = THIS->particle[nodeID].position[1];
+        // const float plane_coord_z = THIS->particle[nodeID].position[2];
+        // const float t_plane_x_0 = (plane_coord_x + THIS->particleRadius - org[0]) * rdir[0];
+        // const float t_plane_x_1 = (plane_coord_x - THIS->particleRadius - org[0]) * rdir[0];
+        // const float t_plane_y_0 = (plane_coord_y + THIS->particleRadius - org[1]) * rdir[1];
+        // const float t_plane_y_1 = (plane_coord_y - THIS->particleRadius - org[1]) * rdir[1];
+        // const float t_plane_z_0 = (plane_coord_z + THIS->particleRadius - org[2]) * rdir[2];
+        // const float t_plane_z_1 = (plane_coord_z - THIS->particleRadius - org[2]) * rdir[2];
+        // const float t_nr_x = min(t_plane_x_0,t_plane_x_1);
+        // const float t_fr_x = max(t_plane_x_0,t_plane_x_1);
+        // const float t_nr_y = min(t_plane_y_0,t_plane_y_1);
+        // const float t_fr_y = max(t_plane_y_0,t_plane_y_1);
+        // const float t_nr_z = min(t_plane_z_0,t_plane_z_1);
+        // const float t_fr_z = max(t_plane_z_0,t_plane_z_1);
+        const float t_nr = max4(t_in, t_plane_nr_x,t_plane_nr_y,t_plane_nr_z);
+        const float t_fr = min4(t_out,t_plane_fr_x,t_plane_fr_y,t_plane_fr_z);
+        if (none(t_nr <= t_fr)) break;
+#endif
+
+
+
+
         PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
         if (isShadowRay && ray.primID >= 0) return;
         break;
@@ -284,7 +480,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
 
 
       const uniform size_t sign = dir_sign[dim];
-      // print("sign %\n",sign);
+      // //if (dbg) print("sign %\n",sign);
       
       // ------------------------------------------------------------------
       // traversal step: compute distance, then compute intervals for front and back side
@@ -295,13 +491,14 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       const float t_plane_nr = min(t_plane_0,t_plane_1);
       const float t_plane_fr = max(t_plane_0,t_plane_1);
       
-      // print("t_plane % %\n",t_plane_nr,t_plane_fr);
+      //if (dbg) print("t_plane % %\n",t_plane_nr,t_plane_fr);
 
       const float t_farChild_in   = max(t_in,t_plane_nr);
       const float t_farChild_out  = t_out;
       const float t_nearChild_out = min(t_out,t_plane_fr);
 #if 1
       // catch the case where all ray segments are on far side
+      //if (dbg) print("all on far side...\n");
       if (none(t_in < t_nearChild_out)) {
         if (none(t_farChild_in < t_farChild_out)) {
           break;
@@ -314,6 +511,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       }
 #endif
 
+      //if (dbg) print("stack push\n");
       unmasked { 
         // stackPtr->t_in       = t_farChild_in;
         // stackPtr->t_out      = t_farChild_out;
@@ -339,13 +537,9 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
 #endif
       stackPtr->sphereID   = nodeID;
 
-#if 0
-      stackPtr += any(t_farChild_in < t_farChild_out);
-#else
       if (any(t_farChild_in < t_farChild_out)) {
         ++stackPtr;
       }
-#endif
       
       STATS(dbg_it2++);
       if (none(t_in < t_out)) {
@@ -362,12 +556,12 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
     // ------------------------------------------------------------------
     
     STATS(dbg_it4++);
-    // print("Popping...\n");
+    //if (dbg) print("Popping...\n");
     while (1) {
       // pop as long as we have to ... or until nothing is left to pop.
       STATS(dbg_it5++);
       if (stackPtr == stack) {
-        // print("DONE\n");
+        // if (dbg) print("DONE\n");
         return;
       }
       // unmasked { 
@@ -382,13 +576,13 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
         continue;
 
       STATS(dbg_it6++);
-      // print("pop - intersect %\n",stackPtr->sphereID);
+      // if (dbg) print("pop - intersect %\n",stackPtr->sphereID);
       // intersect the actual node...
       if (t_in < min(stackPtr->t_sphere_out,ray.t)) {
         PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
         if (isShadowRay && ray.primID >= 0) return;
       } 
-      // else print("skipping culled sphere\n");
+      // else if (dbg) print("skipping culled sphere\n");
 
       STATS(dbg_it7++);
       // do the distance test again, we might just have shortened the ray...
@@ -405,12 +599,40 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
     }
   }
 }
+
+
+
+
+void PartiKDGeometry_old_intersect(uniform PartiKDGeometry *uniform THIS,
+                                   varying Ray &ray,
+                                   uniform size_t primID)
+{
+  // numTrav++;
+  PartiKDGeometry_intersect_old(THIS,ray,primID,false);
+// uniform PartiKDGeometry *uniform THIS,
+//                                    varying Ray &ray,
+//                                    uniform size_t primID,
+//                                    uniform bool isShadowRay)
+}
+
+void PartiKDGeometry_old_occluded(uniform PartiKDGeometry *uniform THIS,
+                                   varying Ray &ray,
+                                   uniform size_t primID)
+{
+  // numTrav++;
+  PartiKDGeometry_intersect_old(THIS,ray,primID,true);
+// uniform PartiKDGeometry *uniform THIS,
+//                                    varying Ray &ray,
+//                                    uniform size_t primID,
+//                                    uniform bool isShadowRay)
+}
         
 
 inline void PartiKDGeometry_kd_intersect_packet(uniform PartiKDGeometry *uniform THIS,
                                                 varying Ray &ray,
                                                 uniform size_t primID)
 {
+
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
   
@@ -542,281 +764,281 @@ void PartiKDGeometry_kd_occluded_packet(uniform PartiKDGeometry *uniform THIS,
   }
 }
 
-struct PartiKDStackEntryPacket {
-  varying float t_in, t_out;
-  uniform size_t nodeID;
-  IF_HAS_DEPTH(uniform size_t depth;)
-};
+// struct PartiKDStackEntryPacket {
+//   varying float t_in, t_out;
+//   uniform size_t nodeID;
+//   IF_HAS_DEPTH(uniform size_t depth;)
+// };
 
 
-void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
-                                      varying Ray &ray,
-                                      uniform size_t primID)
-{
-  float t_in = ray.t0, t_out = ray.t;
-  boxtest(ray,THIS->sphereBounds,t_in,t_out);
+// void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
+//                                       varying Ray &ray,
+//                                       uniform size_t primID)
+// {
+//   float t_in = ray.t0, t_out = ray.t;
+//   boxtest(ray,THIS->sphereBounds,t_in,t_out);
   
-  if (t_out < t_in) return;
+//   if (t_out < t_in) return;
 
-  PartiKDStackEntryPacket stack[64];
-  uniform int32       stackPtr = 0;
-  IF_HAS_DEPTH(uniform size_t      depth    = 0);
-  float org[3], rdir[3];
-  org[0] = ray.org.x;
-  org[1] = ray.org.y;
-  org[2] = ray.org.z;
-  rdir[0] = safe_rcp(ray.dir.x);
-  rdir[1] = safe_rcp(ray.dir.y);
-  rdir[2] = safe_rcp(ray.dir.z);
+//   PartiKDStackEntryPacket stack[64];
+//   uniform int32       stackPtr = 0;
+//   IF_HAS_DEPTH(uniform size_t      depth    = 0);
+//   float org[3], rdir[3];
+//   org[0] = ray.org.x;
+//   org[1] = ray.org.y;
+//   org[2] = ray.org.z;
+//   rdir[0] = safe_rcp(ray.dir.x);
+//   rdir[1] = safe_rcp(ray.dir.y);
+//   rdir[2] = safe_rcp(ray.dir.z);
 
-  uniform size_t nodeID = 0;
-  const uniform uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
-  while (1) {
-    while (1) {
-      // print("nodeID % depth %\n",nodeID,depth);
-      if (t_out < t_in) break;
+//   uniform size_t nodeID = 0;
+//   const uniform uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
+//   while (1) {
+//     while (1) {
+//       // print("nodeID % depth %\n",nodeID,depth);
+//       if (t_out < t_in) break;
 
-#if DIM_FROM_DEPTH
-      const uniform size_t dim = depth % 3; //THIS->innerNode_dimBits;
-#else
-      INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
-      const uniform size_t dim = intPtr[nodeID].x & 3;
-      // print("dim %\n",dim);
-#endif
-      const uniform float plane_coord = THIS->particle[nodeID].position[dim];
+// #if DIM_FROM_DEPTH
+//       const uniform size_t dim = depth % 3; //THIS->innerNode_dimBits;
+// #else
+//       INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
+//       const uniform size_t dim = intPtr[nodeID].x & 3;
+//       // print("dim %\n",dim);
+// #endif
+//       const uniform float plane_coord = THIS->particle[nodeID].position[dim];
       
-      const float rdir_dim = rdir[dim];
-      const float org_dim  = org[dim];
+//       const float rdir_dim = rdir[dim];
+//       const float org_dim  = org[dim];
 
-      const float t_plane_0 = (plane_coord - org_dim + THIS->particleRadius) * rdir_dim;
-      const float t_plane_1 = (plane_coord - org_dim - THIS->particleRadius) * rdir_dim;
-      // const float t_plane_0 = (plane_coord - org[dim] + THIS->particleRadius) * rdir[dim];
-      // const float t_plane_1 = (plane_coord - org[dim] - THIS->particleRadius) * rdir[dim];
+//       const float t_plane_0 = (plane_coord - org_dim + THIS->particleRadius) * rdir_dim;
+//       const float t_plane_1 = (plane_coord - org_dim - THIS->particleRadius) * rdir_dim;
+//       // const float t_plane_0 = (plane_coord - org[dim] + THIS->particleRadius) * rdir[dim];
+//       // const float t_plane_1 = (plane_coord - org[dim] - THIS->particleRadius) * rdir[dim];
 
-      if (nodeID >= THIS->numInnerNodes) {
-        // this is a leaf ...
-        if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
-          PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
-        break; // pop
-      } else {
-        if (nodeBinBits != NULL) {
-          const uniform uint32 binBits = nodeBinBits[nodeID];
-          if ((THIS->transferFunction_activeBinBits & binBits) == 0) break;
-        }
+//       if (nodeID >= THIS->numInnerNodes) {
+//         // this is a leaf ...
+//         if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
+//           PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+//         break; // pop
+//       } else {
+//         if (nodeBinBits != NULL) {
+//           const uniform uint32 binBits = nodeBinBits[nodeID];
+//           if ((THIS->transferFunction_activeBinBits & binBits) == 0) break;
+//         }
         
-        if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
-          PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
-        t_out = min(t_out,ray.t);
+//         if (!all(min(t_plane_0,t_plane_1) >= t_out)) 
+//           PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+//         t_out = min(t_out,ray.t);
         
-        float t_in_0 = t_in;
-        float t_out_0 = t_out;
+//         float t_in_0 = t_in;
+//         float t_out_0 = t_out;
 
-        float t_in_1 = t_in;
-        float t_out_1 = t_out;
-        uniform bool goNode1First = false;
-        if (rdir[dim] > 0.f) {
-          t_out_0 = min(t_out_0,t_plane_0);
-          t_in_1 = max(t_in_1,t_plane_1);
-        } else {
-          t_out_1 = min(t_out_1,t_plane_1);
-          t_in_0 = max(t_in_0,t_plane_0);
-          goNode1First = true;
-        }
-        uniform bool goNode0 = any(t_out_0 > t_in_0);
-        uniform bool goNode1 = any(t_out_1 > t_in_1);
-        if (goNode0) {
-          if (goNode1) {
-            if (goNode1First) {
-              unmasked { stack[stackPtr].t_in  = 1e20f; }
-              unmasked { stack[stackPtr].t_out = -1e20f; }
-              stack[stackPtr].t_in  = t_in_0;
-              stack[stackPtr].t_out = t_out_0;
-              stack[stackPtr].nodeID = 2*nodeID+1;
-              IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
-              stackPtr++;
-              t_in = t_in_1;
-              t_out = t_out_1;
-              nodeID = 2*nodeID+2;
-              IF_HAS_DEPTH(++depth);
-            } else {
-              unmasked { stack[stackPtr].t_in  = 1e20f; }
-              unmasked { stack[stackPtr].t_out = -1e20f; }
-              stack[stackPtr].t_in  = t_in_1;
-              stack[stackPtr].t_out = t_out_1;
-              stack[stackPtr].nodeID = 2*nodeID+2;
-              IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
-              stackPtr++;
-              t_in = t_in_0;
-              t_out = t_out_0;
-              nodeID = 2*nodeID+1;
-              IF_HAS_DEPTH(++depth);
-            }
-            continue;
-          } else {
-            t_in = t_in_0;
-            t_out = t_out_0;
-            nodeID = 2*nodeID+1;
-            IF_HAS_DEPTH(++depth);
-            continue;
-          }
-        } else {
-          if (goNode1) {
-            t_in = t_in_1;
-            t_out = t_out_1;
-            nodeID = 2*nodeID+2;
-            IF_HAS_DEPTH(++depth);
-            continue;
-          } else {
-            break; // pop
-          }
-        }
-      }
-    }
-    // TODO: pop
-    while (1) {
-      if (stackPtr == 0) return;
-      --stackPtr;
-      t_in = stack[stackPtr].t_in;
-      t_out = min(stack[stackPtr].t_out,ray.t);
-      if (all(t_in > t_out)) continue;
-      nodeID = stack[stackPtr].nodeID;
-      IF_HAS_DEPTH(depth  = stack[stackPtr].depth);
-      break;
-    };
-  }
-}
+//         float t_in_1 = t_in;
+//         float t_out_1 = t_out;
+//         uniform bool goNode1First = false;
+//         if (rdir[dim] > 0.f) {
+//           t_out_0 = min(t_out_0,t_plane_0);
+//           t_in_1 = max(t_in_1,t_plane_1);
+//         } else {
+//           t_out_1 = min(t_out_1,t_plane_1);
+//           t_in_0 = max(t_in_0,t_plane_0);
+//           goNode1First = true;
+//         }
+//         uniform bool goNode0 = any(t_out_0 > t_in_0);
+//         uniform bool goNode1 = any(t_out_1 > t_in_1);
+//         if (goNode0) {
+//           if (goNode1) {
+//             if (goNode1First) {
+//               unmasked { stack[stackPtr].t_in  = 1e20f; }
+//               unmasked { stack[stackPtr].t_out = -1e20f; }
+//               stack[stackPtr].t_in  = t_in_0;
+//               stack[stackPtr].t_out = t_out_0;
+//               stack[stackPtr].nodeID = 2*nodeID+1;
+//               IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
+//               stackPtr++;
+//               t_in = t_in_1;
+//               t_out = t_out_1;
+//               nodeID = 2*nodeID+2;
+//               IF_HAS_DEPTH(++depth);
+//             } else {
+//               unmasked { stack[stackPtr].t_in  = 1e20f; }
+//               unmasked { stack[stackPtr].t_out = -1e20f; }
+//               stack[stackPtr].t_in  = t_in_1;
+//               stack[stackPtr].t_out = t_out_1;
+//               stack[stackPtr].nodeID = 2*nodeID+2;
+//               IF_HAS_DEPTH(stack[stackPtr].depth = depth+1);
+//               stackPtr++;
+//               t_in = t_in_0;
+//               t_out = t_out_0;
+//               nodeID = 2*nodeID+1;
+//               IF_HAS_DEPTH(++depth);
+//             }
+//             continue;
+//           } else {
+//             t_in = t_in_0;
+//             t_out = t_out_0;
+//             nodeID = 2*nodeID+1;
+//             IF_HAS_DEPTH(++depth);
+//             continue;
+//           }
+//         } else {
+//           if (goNode1) {
+//             t_in = t_in_1;
+//             t_out = t_out_1;
+//             nodeID = 2*nodeID+2;
+//             IF_HAS_DEPTH(++depth);
+//             continue;
+//           } else {
+//             break; // pop
+//           }
+//         }
+//       }
+//     }
+//     // TODO: pop
+//     while (1) {
+//       if (stackPtr == 0) return;
+//       --stackPtr;
+//       t_in = stack[stackPtr].t_in;
+//       t_out = min(stack[stackPtr].t_out,ray.t);
+//       if (all(t_in > t_out)) continue;
+//       nodeID = stack[stackPtr].nodeID;
+//       IF_HAS_DEPTH(depth  = stack[stackPtr].depth);
+//       break;
+//     };
+//   }
+// }
 
 
-void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
-                                     varying Ray &ray,
-                                     uniform size_t primID)
-{
-#if 1
-  PartiKDGeometry_intersect_packet(THIS,ray,primID);
-#else
-  float t_in = ray.t0, t_out = ray.t;
-  boxtest(ray,THIS->sphereBounds,t_in,t_out);
+// void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
+//                                      varying Ray &ray,
+//                                      uniform size_t primID)
+// {
+// #if 1
+//   PartiKDGeometry_intersect_packet(THIS,ray,primID);
+// #else
+//   float t_in = ray.t0, t_out = ray.t;
+//   boxtest(ray,THIS->sphereBounds,t_in,t_out);
 
   
-  if (t_out < t_in) return;
+//   if (t_out < t_in) return;
 
-  PartiKDStackEntryPacket stack[64];
-  uniform int32 stackPtr = 0;
-  uniform int32 depth = 0;
+//   PartiKDStackEntryPacket stack[64];
+//   uniform int32 stackPtr = 0;
+//   uniform int32 depth = 0;
 
-  float org[3], dir[3];
-  org[0] = ray.org.x;
-  org[1] = ray.org.y;
-  org[2] = ray.org.z;
-  dir[0] = ray.dir.x;
-  dir[1] = ray.dir.y;
-  dir[2] = ray.dir.z;
+//   float org[3], dir[3];
+//   org[0] = ray.org.x;
+//   org[1] = ray.org.y;
+//   org[2] = ray.org.z;
+//   dir[0] = ray.dir.x;
+//   dir[1] = ray.dir.y;
+//   dir[2] = ray.dir.z;
 
-  uniform size_t nodeID = 0;
-  const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
-  while (1) {
-    while (1) {
-      if (t_out < t_in) break;
-      if (nodeID >= THIS->numInnerNodes) {
-        // this is a leaf ...
-        if (PartiKDGeometry_intersectPrim(THIS,nodeID,ray))
-          return;
-        break; // pop
-      } else {
-        if (nodeBinBits) {
-          const uniform uint32 binBits = nodeBinBits[nodeID];
-          if ((THIS->transferFunction_activeBinBits & binBits) == 0) break;
-        }
+//   uniform size_t nodeID = 0;
+//   const unsigned uint32 *uniform nodeBinBits = THIS->innerNode_attributeMask; //THIS->innerNode_binBits;
+//   while (1) {
+//     while (1) {
+//       if (t_out < t_in) break;
+//       if (nodeID >= THIS->numInnerNodes) {
+//         // this is a leaf ...
+//         if (PartiKDGeometry_intersectPrim(THIS,nodeID,ray))
+//           return;
+//         break; // pop
+//       } else {
+//         if (nodeBinBits) {
+//           const uniform uint32 binBits = nodeBinBits[nodeID];
+//           if ((THIS->transferFunction_activeBinBits & binBits) == 0) break;
+//         }
         
-        if (PartiKDGeometry_intersectPrim(THIS,nodeID,ray))
-          return;
-        t_out = min(t_out,ray.t);
+//         if (PartiKDGeometry_intersectPrim(THIS,nodeID,ray))
+//           return;
+//         t_out = min(t_out,ray.t);
         
-        const uniform size_t dim = depth % 3; //THIS->innerNodeInfo[nodeID] >> 30;
-        const uniform float plane_coord = THIS->particle[nodeID].position[dim];
+//         const uniform size_t dim = depth % 3; //THIS->innerNodeInfo[nodeID] >> 30;
+//         const uniform float plane_coord = THIS->particle[nodeID].position[dim];
 
-        const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
-        const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
+//         const float t_plane_0 = (plane_coord + THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
+//         const float t_plane_1 = (plane_coord - THIS->particleRadius - org[dim]) * safe_rcp(dir[dim]);
         
-        float t_in_0 = t_in;
-        float t_out_0 = t_out;
+//         float t_in_0 = t_in;
+//         float t_out_0 = t_out;
 
-        float t_in_1 = t_in;
-        float t_out_1 = t_out;
-        uniform bool goNode1First = false;
-        if (dir[dim] > 0.f) {
-          t_out_0 = min(t_out_0,t_plane_0);
-          t_in_1 = max(t_in_1,t_plane_1);
-        } else {
-          t_out_1 = min(t_out_1,t_plane_1);
-          t_in_0 = max(t_in_0,t_plane_0);
-          goNode1First = true;
-        }
-        uniform bool goNode0 = any(t_out_0 >= t_in_0);
-        uniform bool goNode1 = any(t_out_1 >= t_in_1);
-        if (goNode0) {
-          if (goNode1) {
-            if (goNode1First) {
-              unmasked { stack[stackPtr].t_in  = 1e20f; }
-              unmasked { stack[stackPtr].t_out = -1e20f; }
-              stack[stackPtr].t_in  = t_in_0;
-              stack[stackPtr].t_out = t_out_0;
-              stack[stackPtr].nodeID = 2*nodeID+1;
-              stack[stackPtr].depth = depth+1;
-              stackPtr++;
-              depth = depth + 1;
-              t_in = t_in_1;
-              t_out = t_out_1;
-              nodeID = 2*nodeID+2;
-            } else {
-              unmasked { stack[stackPtr].t_in  = 1e20f; }
-              unmasked { stack[stackPtr].t_out = -1e20f; }
-              stack[stackPtr].t_in  = t_in_1;
-              stack[stackPtr].t_out = t_out_1;
-              stack[stackPtr].nodeID = 2*nodeID+2;
-              stack[stackPtr].depth = depth+1;
-              stackPtr++;
-              depth = depth + 1;
-              t_in = t_in_0;
-              t_out = t_out_0;
-              nodeID = 2*nodeID+1;
-            }
-            continue;
-          } else {
-            t_in = t_in_0;
-            t_out = t_out_0;
-            nodeID = 2*nodeID+1;
-            depth = depth + 1;
-            continue;
-          }
-        } else {
-          if (goNode1) {
-            t_in = t_in_1;
-            t_out = t_out_1;
-            nodeID = 2*nodeID+2;
-            depth = depth + 1;
-            continue;
-          } else {
-            break; // pop
-          }
-        }
-      }
-    }
-    // TODO: pop
-    while (1) {
-      if (stackPtr == 0) return;
-      --stackPtr;
-      t_in = stack[stackPtr].t_in;
-      t_out = min(stack[stackPtr].t_out,ray.t);
-      if (all(t_in > t_out)) continue;
-      nodeID = stack[stackPtr].nodeID;
-      depth = stack[stackPtr].depth;
-      break;
-    };
-  }
-#endif
-}
-#endif
+//         float t_in_1 = t_in;
+//         float t_out_1 = t_out;
+//         uniform bool goNode1First = false;
+//         if (dir[dim] > 0.f) {
+//           t_out_0 = min(t_out_0,t_plane_0);
+//           t_in_1 = max(t_in_1,t_plane_1);
+//         } else {
+//           t_out_1 = min(t_out_1,t_plane_1);
+//           t_in_0 = max(t_in_0,t_plane_0);
+//           goNode1First = true;
+//         }
+//         uniform bool goNode0 = any(t_out_0 >= t_in_0);
+//         uniform bool goNode1 = any(t_out_1 >= t_in_1);
+//         if (goNode0) {
+//           if (goNode1) {
+//             if (goNode1First) {
+//               unmasked { stack[stackPtr].t_in  = 1e20f; }
+//               unmasked { stack[stackPtr].t_out = -1e20f; }
+//               stack[stackPtr].t_in  = t_in_0;
+//               stack[stackPtr].t_out = t_out_0;
+//               stack[stackPtr].nodeID = 2*nodeID+1;
+//               stack[stackPtr].depth = depth+1;
+//               stackPtr++;
+//               depth = depth + 1;
+//               t_in = t_in_1;
+//               t_out = t_out_1;
+//               nodeID = 2*nodeID+2;
+//             } else {
+//               unmasked { stack[stackPtr].t_in  = 1e20f; }
+//               unmasked { stack[stackPtr].t_out = -1e20f; }
+//               stack[stackPtr].t_in  = t_in_1;
+//               stack[stackPtr].t_out = t_out_1;
+//               stack[stackPtr].nodeID = 2*nodeID+2;
+//               stack[stackPtr].depth = depth+1;
+//               stackPtr++;
+//               depth = depth + 1;
+//               t_in = t_in_0;
+//               t_out = t_out_0;
+//               nodeID = 2*nodeID+1;
+//             }
+//             continue;
+//           } else {
+//             t_in = t_in_0;
+//             t_out = t_out_0;
+//             nodeID = 2*nodeID+1;
+//             depth = depth + 1;
+//             continue;
+//           }
+//         } else {
+//           if (goNode1) {
+//             t_in = t_in_1;
+//             t_out = t_out_1;
+//             nodeID = 2*nodeID+2;
+//             depth = depth + 1;
+//             continue;
+//           } else {
+//             break; // pop
+//           }
+//         }
+//       }
+//     }
+//     // TODO: pop
+//     while (1) {
+//       if (stackPtr == 0) return;
+//       --stackPtr;
+//       t_in = stack[stackPtr].t_in;
+//       t_out = min(stack[stackPtr].t_out,ray.t);
+//       if (all(t_in > t_out)) continue;
+//       nodeID = stack[stackPtr].nodeID;
+//       depth = stack[stackPtr].depth;
+//       break;
+//     };
+//   }
+// #endif
+// }
+// #endif
 
 
 export void *uniform PartiKDGeometry_create(void           *uniform cppEquivalent)
@@ -883,25 +1105,33 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   rtcSetUserData(model->embreeSceneHandle,geomID,geom);
   rtcSetBoundsFunction(model->embreeSceneHandle,geomID,
                        (uniform RTCBoundsFunc)&PartiKDGeometry_bounds);
-#if USE_NAIVE_SPMD_TRAVERSAL
+// #if USE_NAIVE_SPMD_TRAVERSAL
+//   rtcSetIntersectFunction(model->embreeSceneHandle,geomID,
+//                           (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_naive);
+//   rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
+//                          (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_naive);
+// #else
+// # if 1
+
+#if 0
   rtcSetIntersectFunction(model->embreeSceneHandle,geomID,
-                          (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_naive);
+                          (uniform RTCIntersectFuncVarying)&PartiKDGeometry_old_intersect);
   rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
-                         (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_naive);
+                         (uniform RTCOccludedFuncVarying)&PartiKDGeometry_old_occluded);
 #else
-# if 1
   rtcSetIntersectFunction(model->embreeSceneHandle,geomID,
                           (uniform RTCIntersectFuncVarying)&PartiKDGeometry_kd_intersect_packet);
   rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
                          (uniform RTCOccludedFuncVarying)&PartiKDGeometry_kd_occluded_packet);
-# else
-  rtcSetIntersectFunction(model->embreeSceneHandle,geomID,
-                          (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_packet);
-
-  rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
-                         (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
-# endif
 #endif
+// # else
+//   rtcSetIntersectFunction(model->embreeSceneHandle,geomID,
+//                           (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_packet);
+
+//   rtcSetOccludedFunction(model->embreeSceneHandle,geomID,
+//                          (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
+// # endif
+// #endif
 
   if (transferFunction) PartiKDGeometry_updateTransferFunction(geom,transferFunction);
 }

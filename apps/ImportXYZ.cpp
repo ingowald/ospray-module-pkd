@@ -26,6 +26,41 @@
 
 namespace ospray {
   namespace xyz {
+    using std::cout;
+    using std::endl;
+
+    void importModelNoHeader(ParticleModel *model, const embree::FileName &fileName)
+    {
+      int rc;
+      FILE *file = fopen(fileName.c_str(),"r");
+      if (!file) 
+        throw std::runtime_error("could not open input file "+fileName.str());
+
+      char line[10000]; 
+      fgets(line,10000,file); // description line
+
+      int i = 0;
+      while (fgets(line,10000,file) && !feof(file)) {
+        ++i;
+        char atomName[110];
+        vec3f p;
+        vec3f n;
+        rc = sscanf(line,"%100s %f %f %f %f %f %f\n",atomName,
+                    &p.x,&p.y,&p.z,
+                    &n.x,&n.y,&n.z
+                    );
+        if (rc != 7 && rc != 4) {
+          std::stringstream ss;
+          ss << "in " << fileName << " (line " << (i+2) << "): "
+             << "could not parse .dat.xyz data line" << std::endl;
+          throw std::runtime_error(ss.str());
+        }
+        int32 type = model->getAtomTypeID(atomName);
+        model->type.push_back(type);
+        model->position.push_back(p);
+      }
+    }
+
 
     void importModel(ParticleModel *model, const embree::FileName &fileName)
     {
@@ -37,8 +72,13 @@ namespace ospray {
       // int rc = sscanf(line,"%i",&numAtoms);
       int rc = fscanf(file,"%i\n",&numAtoms);
       PRINT(numAtoms);
-      if (rc != 1)
-        throw std::runtime_error("could not parse .dat.xyz header in input file "+fileName.str());
+      if (rc != 1) {
+        cout << "could not parse .dat.xyz header in input file " << fileName.str() << endl;
+        cout << "trying to parse without header..." << endl;
+        fclose(file);
+        importModelNoHeader(model,fileName);
+        return;
+      }
       
       char line[10000]; 
       fgets(line,10000,file); // description line

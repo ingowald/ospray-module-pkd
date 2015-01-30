@@ -94,7 +94,7 @@ namespace ospray {
                          const size_t depth) const
   {
     // if (depth < 4)
-    //   std::cout << "#osp:pkd: building subtree " << nodeID << std::endl;
+    // std::cout << "#osp:pkd: building subtree " << nodeID << std::endl;
     if (!hasLeftChild(nodeID)) 
       // has no children -> it's a valid kd-tree already :-)
       return;
@@ -319,6 +319,7 @@ namespace ospray {
 
   void PartiKD::build(ParticleModel *model) 
   {
+    PING;
     assert(this->model == NULL);
     assert(model);
     this->model = model;
@@ -328,7 +329,7 @@ namespace ospray {
     numParticles = model->position.size();
     assert(numParticles <= (1ULL << 31));
 
-#if 0
+#if 1
     cout << "#osp:pkd: TEST: RANDOMIZING PARTICLES" << endl;
     for (size_t i=numParticles-1;i>0;--i) {
       size_t j = size_t(drand48()*i);
@@ -433,7 +434,9 @@ namespace ospray {
     double before = getSysTime();
     std::cout << "#osp:pkd: building tree ..." << std::endl;
     PartiKD partiKD;
+    PING;
     partiKD.build(&model);
+    PING;
     double after = getSysTime();
     std::cout << "#osp:pkd: tree built (" << (after-before) << " sec)" << std::endl;
 
