@@ -386,6 +386,14 @@ namespace ospray {
               attr->name.c_str(),ftell(bin),numParticles);
       fwrite(&attr->value[0],sizeof(float),numParticles,bin);
     }
+    if (!model->type.empty()) {
+      float *f = new float[model->type.size()];
+      for (int i=0;i<model->type.size();i++) f[i] = model->type[i];
+      fprintf(xml,"<attribute name=\"atomType\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
+              ftell(bin),numParticles);
+      fwrite(f,sizeof(float),numParticles,bin);
+      delete[] f;
+    }
     // if (model->attribute.size() != 0) 
     //   fprintf(xml,"<transferFunction><LinearTransferFunction/></transferFunction>\n");
     if (model->radius > 0.)
