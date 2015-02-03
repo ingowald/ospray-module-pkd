@@ -350,6 +350,7 @@ namespace ospray {
 
     const box3f &bounds = model->getBounds();
     std::cout << "#osp:pkd: bounds of model " << bounds << std::endl;
+    std::cout << "#osp:pkd: number of input particles " << numParticles << std::endl;
     buildRec(0,bounds,0);
   }
 
@@ -432,8 +433,10 @@ namespace ospray {
       std::cout << "#osp:pkd: no radius specified on command line" << std::endl;
 
     // load the input(s)
-    for (int i=0;i<input.size();i++)
+    for (int i=0;i<input.size();i++) {
+      cout << "#osp:pkd: loading " << input[i] << endl;
       model.load(input[i]);
+    }
 
     if (model.radius == 0.f) {
       throw std::runtime_error("no radius specified via either command line or model file");
@@ -442,9 +445,7 @@ namespace ospray {
     double before = getSysTime();
     std::cout << "#osp:pkd: building tree ..." << std::endl;
     PartiKD partiKD;
-    PING;
     partiKD.build(&model);
-    PING;
     double after = getSysTime();
     std::cout << "#osp:pkd: tree built (" << (after-before) << " sec)" << std::endl;
 
