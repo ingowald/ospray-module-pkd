@@ -21,6 +21,7 @@ namespace ospray {
   // file importers
   namespace uintah { void importModel(ParticleModel *model, const embree::FileName &s); }
   namespace xyz { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace cosmic_web { void importModel(ParticleModel *model, const embree::FileName &s); }
 
   /*! helper function that creates a pseudo-random color for a given
       ID; this is used to generate initial colors for atom types, if
@@ -56,6 +57,9 @@ namespace ospray {
     } else if (fn.ext() == "xml") {
       // assume uintah format
       uintah::importModel(this,fn);
+    } else if (fn.ext() == "dat") {
+      // assume uintah format
+      cosmic_web::importModel(this,fn);
     } else if (fn.ext() == "xyz") {
       // assume uintah format
       xyz::importModel(this,fn);

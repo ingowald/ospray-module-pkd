@@ -104,7 +104,7 @@ namespace ospray {
     const size_t dim = depth % 3;
 #else
     const size_t dim = embree::maxDim(bounds.size());
-    if (depth < 4) { PRINT(bounds); printf("depth %ld-> dim %ld\n",depth,dim); }
+    // if (depth < 4) { PRINT(bounds); printf("depth %ld-> dim %ld\n",depth,dim); }
 #endif
     const size_t N = numParticles;
 #if FAST
@@ -329,7 +329,7 @@ namespace ospray {
     numParticles = model->position.size();
     assert(numParticles <= (1ULL << 31));
 
-#if 1
+#if 0
     cout << "#osp:pkd: TEST: RANDOMIZING PARTICLES" << endl;
     for (size_t i=numParticles-1;i>0;--i) {
       size_t j = size_t(drand48()*i);

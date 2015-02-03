@@ -30,7 +30,6 @@
 
 #include "ospray/common/Box.ih"
 
-//#define ADDTL_CULLING 1
 /*! if enabled, we use a naive SPMD traversal where each lane does its own traversal */
 // #define USE_NAIVE_SPMD_TRAVERSAL 0
 
@@ -86,8 +85,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 
   
   if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
-    // float attrib = ;//particle[primID].attribute;
-    
     // normalize attribute to the [0,1] range (by normalizing relative
     // to the attribute range stored in the min max BVH's root node
     const uniform float attrib_lo = THIS->attr_lo;
@@ -100,7 +97,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
                                                                  attrib);
     dg.color = make_vec4f(color.x,color.y,color.z,alpha);
-    // }
   }
 
   dg.Ng = Ng;
@@ -113,8 +109,6 @@ void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
 {
   bbox.lower = geometry->sphereBounds.lower;
   bbox.upper = geometry->sphereBounds.upper;
-  // print("bounds.lower % % %\n",bbox.lower.x,bbox.lower.y,bbox.lower.z);
-  // print("bounds.upper % % %\n",bbox.upper.x,bbox.upper.y,bbox.upper.z);
 }
 
 
@@ -407,80 +401,33 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
     //if (dbg) print("outer % % %\n",nodeID,t_in,t_out);
     STATS(dbg_it0++);
     while (1) {    
-// #if 1
-//       uniform size_t stackDepth = stackPtr-stack;
-//       if (stackDepth > maxStackDepth) {
-//         maxStackDepth = stackDepth;
-//         //if (dbg) print("MAX STACK DEPTH: %\n",maxStackDepth);
-//       }
-// #endif
 
       if (t_in > t_out) break;
 
       //if (dbg) print("inner node % dim % range % %\n",nodeID,dim,t_in,t_out);
       STATS(dbg_it1++);
       if (nodeID >= numInnerNodes) {
-        //if (dbg) print("LEAF prim %\n",nodeID);
-        // this is a leaf node - can't to to a leaf, anyway. Intersect the prim, and be done with it.
-
-
-#if ADDTL_CULLING
-      const float org_to_node_x = particle[nodeID].position[0] - org[0];
-      const float t_plane_0_x  = (org_to_node_x - radius) * rdir[0];
-      const float t_plane_1_x  = (org_to_node_x + radius) * rdir[0];
-      const float t_plane_nr_x = min(t_plane_0_x,t_plane_1_x);
-      const float t_plane_fr_x = max(t_plane_0_x,t_plane_1_x);
-
-      const float org_to_node_y = particle[nodeID].position[1] - org[1];
-      const float t_plane_0_y  = (org_to_node_y - radius) * rdir[1];
-      const float t_plane_1_y  = (org_to_node_y + radius) * rdir[1];
-      const float t_plane_nr_y = min(t_plane_0_y,t_plane_1_y);
-      const float t_plane_fr_y = max(t_plane_0_y,t_plane_1_y);
-
-      const float org_to_node_z = particle[nodeID].position[2] - org[2];
-      const float t_plane_0_z  = (org_to_node_z - radius) * rdir[2];
-      const float t_plane_1_z  = (org_to_node_z + radius) * rdir[2];
-      const float t_plane_nr_z = min(t_plane_0_z,t_plane_1_z);
-      const float t_plane_fr_z = max(t_plane_0_z,t_plane_1_z);
-
-
-        // const float plane_coord_x = THIS->particle[nodeID].position[0];
-        // const float plane_coord_y = THIS->particle[nodeID].position[1];
-        // const float plane_coord_z = THIS->particle[nodeID].position[2];
-        // const float t_plane_x_0 = (plane_coord_x + THIS->particleRadius - org[0]) * rdir[0];
-        // const float t_plane_x_1 = (plane_coord_x - THIS->particleRadius - org[0]) * rdir[0];
-        // const float t_plane_y_0 = (plane_coord_y + THIS->particleRadius - org[1]) * rdir[1];
-        // const float t_plane_y_1 = (plane_coord_y - THIS->particleRadius - org[1]) * rdir[1];
-        // const float t_plane_z_0 = (plane_coord_z + THIS->particleRadius - org[2]) * rdir[2];
-        // const float t_plane_z_1 = (plane_coord_z - THIS->particleRadius - org[2]) * rdir[2];
-        // const float t_nr_x = min(t_plane_x_0,t_plane_x_1);
-        // const float t_fr_x = max(t_plane_x_0,t_plane_x_1);
-        // const float t_nr_y = min(t_plane_y_0,t_plane_y_1);
-        // const float t_fr_y = max(t_plane_y_0,t_plane_y_1);
-        // const float t_nr_z = min(t_plane_z_0,t_plane_z_1);
-        // const float t_fr_z = max(t_plane_z_0,t_plane_z_1);
-        const float t_nr = max4(t_in, t_plane_nr_x,t_plane_nr_y,t_plane_nr_z);
-        const float t_fr = min4(t_out,t_plane_fr_x,t_plane_fr_y,t_plane_fr_z);
-        if (none(t_nr <= t_fr)) break;
-#endif
-
-
-
+        // this is a leaf node - can't to to a leaf, anyway. Intersect
+        // the prim, and be done with it.
 
         PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
         if (isShadowRay && ray.primID >= 0) return;
         break;
       } 
-      
+
+
+      if (THIS->innerNode_attributeMask) {
+        const uniform uint32 nodeAttrBits = THIS->innerNode_attributeMask[nodeID];
+        if ((nodeAttrBits & THIS->transferFunction_activeBinBits) == 0)
+          break;
+      }
 
 #if !DIM_FROM_DEPTH
       INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
       dim = intPtr[nodeID].x & 3;
 #endif
 
-
       const uniform size_t sign = dir_sign[dim];
-      // //if (dbg) print("sign %\n",sign);
       
       // ------------------------------------------------------------------
       // traversal step: compute distance, then compute intervals for front and back side
@@ -511,11 +458,7 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       }
 #endif
 
-      //if (dbg) print("stack push\n");
       unmasked { 
-        // stackPtr->t_in       = t_farChild_in;
-        // stackPtr->t_out      = t_farChild_out;
-        // stackPtr->t_sphere_out = t_nearChild_out;
         stackPtr->t_in = 1e20f;
         stackPtr->t_out = -1e20f;
         stackPtr->t_sphere_out = -1e20f;
@@ -526,14 +469,11 @@ inline void PartiKDGeometry_packet(uniform PartiKDGeometry *uniform THIS,
       stackPtr->t_out      = t_farChild_out;
       stackPtr->t_sphere_out = t_nearChild_out;
 
-      // const float t_nearChild_in  = t_in;
-      // const float t_nearChild_out = min(t_out,t_plane_fr);
       t_out = t_nearChild_out; 
 #if DIM_FROM_DEPTH
       dim = (dim == 2)?0:dim+1;
-      // const uniform size_t nextDim = (dim == 2)?0:dim+1;
       
-      stackPtr->dim        = dim; //nextDim;
+      stackPtr->dim        = dim;
 #endif
       stackPtr->sphereID   = nodeID;
 
@@ -1098,6 +1038,7 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->attr_lo         = attr_lo;
   geom->attr_hi         = attr_hi;
   geom->innerNode_attributeMask   = innerNode_attributeMask;
+  print("array of inner-node attribute masks: %\n",innerNode_attributeMask);
   // geom->activeBinBits = 0xffffffff;
 
   geom->transferFunction  = (TransferFunction *uniform)transferFunction;
@@ -1134,4 +1075,5 @@ export void PartiKDGeometry_set(void       *uniform _geom,
 // #endif
 
   if (transferFunction) PartiKDGeometry_updateTransferFunction(geom,transferFunction);
+  print("bit mask from transfer function: %\n",geom->transferFunction_activeBinBits);
 }

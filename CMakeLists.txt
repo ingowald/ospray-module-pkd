@@ -40,6 +40,7 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     #importers
     apps/ImportUIntah.cpp
     apps/ImportXYZ.cpp
+    apps/ImportCosmicWeb.cpp
     )
   TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX}  ospray_xml${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------

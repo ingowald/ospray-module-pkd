@@ -61,7 +61,7 @@ struct PartiKDGeometry {
   box3f sphereBounds;
 
   /*! (maximum) particle radius */
-  float           particleRadius;
+  float particleRadius;
 
 
   // -------------------------------------------------------------------------

@@ -43,8 +43,9 @@ namespace ospray {
 
   uint32 getAttributeBits(float val, float lo, float hi)
   {
+    // cout << " attrbits: " << val << " (" << lo << "," << hi << ")" << endl;
     if (hi == lo) return 1;
-    int bit = std::max((int)31,int(32*((val-lo)/(hi-lo))));
+    int bit = std::min((int)31,int(32*((val-lo)/float(hi-lo))));
     return 1<<bit;
   }
 
@@ -117,6 +118,7 @@ namespace ospray {
         else if (lID < numParticles)
           lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
         binBitsArray[pID] = lBits|rBits;
+        // cout << " bits " << pID << " : " << (int*)lBits << " " << (int*)rBits << endl;
       }
       cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
     }
