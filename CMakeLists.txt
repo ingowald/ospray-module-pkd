@@ -31,7 +31,7 @@ OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
     ospray/AlphaSpheres.cpp
     ospray/AlphaSpheres.ispc
     )
-  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ${LIBS})
+  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
 
 IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
   ADD_EXECUTABLE(ospPartiKD
