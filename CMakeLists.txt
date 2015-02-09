@@ -19,21 +19,24 @@ CONFIGURE_OSPRAY()
 # mini-scene graph viewer for _geometry_ (intentionally simple)
 OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
 
-  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
-  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
-  OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
-    ospray/PKDGeometry.cpp
-    ospray/PKDGeometry.ispc
-    ospray/MinMaxBVH2.cpp
-    ospray/MinMaxBVH2.ispc
-    ospray/AlphaSpheres.cpp
-    ospray/AlphaSpheres.ispc
-    )
-  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
+# ------------------------------------------------------------
+OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
+  ospray/PKDGeometry.cpp
+  ospray/PKDGeometry.ispc
+  ospray/MinMaxBVH2.cpp
+  ospray/MinMaxBVH2.ispc
+  ospray/AlphaSpheres.cpp
+  ospray/AlphaSpheres.ispc
+  )
+TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
+# ------------------------------------------------------------
 
 IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
+  # ------------------------------------------------------------
   ADD_EXECUTABLE(ospPartiKD
     apps/PartiKD.cpp
     apps/ParticleModel.cpp
