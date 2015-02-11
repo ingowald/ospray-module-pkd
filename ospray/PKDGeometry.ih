@@ -90,3 +90,26 @@ struct PartiKDGeometry {
   const unsigned uint32 *innerNode_attributeMask;
 };
 
+inline float safe_rcp(float f) 
+{ return (abs(f) < 1e-20f)?1e20f:rcp(f); }
+
+void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
+                                   uniform Model *uniform model,
+                                   varying DifferentialGeometry &dg,
+                                   const varying Ray &ray,
+                                   uniform int64 flags);
+
+/*! the 'virtual' traverse function for a pkd geometry */
+void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
+                                      varying Ray &ray,
+                                      uniform size_t primID);
+
+/*! the 'virtual' occluded function for a pkd geometry */
+void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
+                                     varying Ray &ray,
+                                     uniform size_t primID);
+
+varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
+                                           uniform size_t primID,
+                                           varying Ray &ray);
+
