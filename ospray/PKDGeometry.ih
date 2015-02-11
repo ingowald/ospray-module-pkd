@@ -42,9 +42,9 @@ struct PartiKDGeometry {
   uniform Geometry geometry;
   
   //! number of particles
-  size_t numParticles;
+  uint64 numParticles;
   //! number of inner nodes
-  size_t numInnerNodes;
+  uint64 numInnerNodes;
 
   //! array of particles, in kd-tree order
   PKDParticle *uniform particle;

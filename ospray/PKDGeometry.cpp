@@ -81,7 +81,7 @@ namespace ospray {
       transferFunction->registerListener(this);
     }
 
-    bool useSPMD = getParamf("useSPMD",0);
+    bool useSPMD = getParam1i("useSPMD",0);
     
     particleRadius = getParamf("radius",0.f);
     if (particleRadius <= 0.f)

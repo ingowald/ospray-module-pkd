@@ -52,20 +52,58 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
   }
 
   if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
-    // normalize attribute to the [0,1] range (by normalizing relative
-    // to the attribute range stored in the min max BVH's root node
+#if 1
+    uniform float *uniform attribArray = THIS->attribute;
     const uniform float attrib_lo = THIS->attr_lo;
     const uniform float attrib_hi = THIS->attr_hi;
+
+    float attrib_org;
+    uint64 primID64 = (uint32)ray.primID_hi64;
+    primID64 <<= 32;
+    primID64 += (uint32)ray.primID;
+    foreach_unique(pID in primID64) {
+      uniform float *uniform ptr = attribArray + pID;
+      attrib_org = ptr[0];
+    }
+      
     const float attrib
-      = (THIS->attribute[ray.primID] - attrib_lo)
+      = (attrib_org - attrib_lo)
       * rcp(attrib_hi - attrib_lo + 1e-10f);
-    
+    if (attrib >= 1.f || attrib <= 0.f) 
+      print("ATTRIB OUT OF RANGE:\n org %\n remapped %\n ID %:%\n range % %\n",
+            attrib_org,attrib,primID64,ray.primID,attrib_lo,attrib_hi);
     // compute alpha value from attribute value
     const float alpha = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,
                                                                    attrib);
     const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
                                                                  attrib);
     dg.color = make_vec4f(color.x,color.y,color.z,alpha);
+#else
+    foreach_unique(upper64 in ray.primID_hi64) {
+      if (upper64) print("UPPER: %\n",upper64);
+      uniform uint64 offs = upper64;
+      offs = offs << 32;
+      uniform float *uniform attribArray = THIS->attribute + offs;//; // + (((unsigned int64)upper64)<<32);
+      // normalize attribute to the [0,1] range (by normalizing relative
+      // to the attribute range stored in the min max BVH's root node
+      const uniform float attrib_lo = THIS->attr_lo;
+      const uniform float attrib_hi = THIS->attr_hi;
+      attrib_array += (unsigned int32)ray.primID;
+      const float attrib_org = attribArray[0]; //(unsigned int32)ray.primID];
+      const float attrib
+        = (attrib_org - attrib_lo)
+        * rcp(attrib_hi - attrib_lo + 1e-10f);
+      if (attrib >= 1.f || attrib <= 0.f) 
+        print("ATTRIB OUT OF RANGE:\n org %\n remapped %\n ID %:%\n range % %\n",
+              attrib_org,attrib,offs,ray.primID,attrib_lo,attrib_hi);
+      // compute alpha value from attribute value
+      const float alpha = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,
+                                                                   attrib);
+      const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
+                                                                   attrib);
+      dg.color = make_vec4f(color.x,color.y,color.z,alpha);
+    }
+#endif
   }
   dg.Ng = Ng;
   dg.Ns = Ns;
@@ -118,8 +156,8 @@ export void PartiKDGeometry_set(void       *uniform _geom,
                                 uniform bool useSPMD,
                                 void           *uniform transferFunction,
                                 float           uniform particleRadius,
-                                uniform size_t  numParticles,
-                                uniform size_t  numInnerNodes,
+                                uniform uint64  numParticles,
+                                uniform uint64  numInnerNodes,
                                 PKDParticle    *uniform particle,
                                 float          *uniform attribute,
                                 uint32         *uniform innerNode_attributeMask,
