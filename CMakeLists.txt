@@ -39,6 +39,7 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     apps/ParticleModel.cpp
     #importers
     apps/ImportUIntah.cpp
+    apps/ImportCOSMOS.cpp
     apps/ImportXYZ.cpp
     apps/ImportCosmicWeb.cpp
     )
