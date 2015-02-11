@@ -81,6 +81,8 @@ namespace ospray {
       transferFunction->registerListener(this);
     }
 
+    bool useSPMD = getParamf("useSPMD",0);
+    
     particleRadius = getParamf("radius",0.f);
     if (particleRadius <= 0.f)
       throw std::runtime_error("#osp:pkd: invalid radius (<= 0.f)");
@@ -127,7 +129,7 @@ namespace ospray {
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now
     // -------------------------------------------------------
-    ispc::PartiKDGeometry_set(getIE(),model->getIE(),
+    ispc::PartiKDGeometry_set(getIE(),model->getIE(),useSPMD,
                               transferFunction?transferFunction->getIE():NULL,
                               particleRadius,
                               numParticles,
