@@ -85,7 +85,7 @@ namespace ospray {
 #if FAST
 #  define POS(idx,dim) position[idx].x
 #else
-# define POS(idx,dim) pos(idx,dim)
+#  define POS(idx,dim) pos(idx,dim)
 #endif
 
 
