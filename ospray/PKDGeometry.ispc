@@ -80,69 +80,6 @@ void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
 }
 
 
-varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
-                                           uniform size_t primID,
-                                           varying Ray &ray)
-{
-  // typecast "implicit THIS" pointer to the proper geometry type
-  PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
-  const uniform float *uniform pos = &THIS->particle[primID].position[0];
-  // read sphere members required for intersection test
-  const float radius = THIS->particleRadius;
-  // uniform vec3f center = (uniform vec3f &)THIS->particle[primID].position;
-  const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
-  
-  // perform first half of intersection test ....
-  const vec3f A = center - ray.org;
-
-  const float a = dot(ray.dir,ray.dir);
-  const float b = -2.f*dot(ray.dir,A);
-  const float c = dot(A,A)-radius*radius;
-  
-  const float radical = b*b-4.f*a*c;
-  if (radical < 0.f) return false;
-
-  // compute second half of intersection test
-  const float srad = sqrt(radical);
-  
-  const float t_in  = (- b - srad) *rcpf(a+a);
-  const float t_out = (- b + srad) *rcpf(a+a);
-
-  float hit_t = 0.f;
-  if (t_in > ray.t0 && t_in < ray.t) {
-    hit_t = t_in;
-  } else if (t_out > ray.t0 && t_out < ray.t) {
-    hit_t = t_out;
-  }
-  else /* miss : */ return false;
-
-  // do attribute alpha test, if both attribute and transfer fct are set
-  if ((THIS->attribute!=NULL) & (THIS->transferFunction!=NULL)) {
-    // -------------------------------------------------------
-    // do attribute test
-    uniform float attrib = THIS->attribute[primID];
-
-    // normalize attribute to the [0,1] range (by normalizing relative
-    // to the attribute range stored in the min max BVH's root node
-    const uniform float attrib_lo = THIS->attr_lo;
-    const uniform float attrib_hi = THIS->attr_hi;
-    attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
-  
-    // compute alpha value from attribute value
-    const float alpha
-      = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,attrib);
-    if (alpha <= .5f)
-      return false;
-  }
-
-  // found a hit - store it
-  ray.primID = primID;
-  ray.geomID = THIS->geometry.geomID;
-  ray.t = t_in;
-  ray.Ng = ray.t*ray.dir - A;
-  return true;
-}
-
 /*! creates a new pkd geometry */
 export void *uniform PartiKDGeometry_create(void           *uniform cppEquivalent)
 {
@@ -178,6 +115,7 @@ export void PartiKDGeometry_updateTransferFunction(void *uniform _THIS,
 /*! 'constructor' for a newly created pkd geometry */
 export void PartiKDGeometry_set(void       *uniform _geom,
                                 void           *uniform _model,
+                                uniform bool useSPMD,
                                 void           *uniform transferFunction,
                                 float           uniform particleRadius,
                                 uniform size_t  numParticles,
@@ -214,14 +152,23 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   rtcSetUserData(model->embreeSceneHandle,geomID,geom);
   rtcSetBoundsFunction(model->embreeSceneHandle,geomID,
                        (uniform RTCBoundsFunc)&PartiKDGeometry_bounds);
-  
+
+  if (useSPMD) {
+  print("creating PKD with ***SPMD*** traversal\n");
+  rtcSetIntersectFunction
+    (model->embreeSceneHandle,geomID,
+     (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_spmd);
+  rtcSetOccludedFunction
+    (model->embreeSceneHandle,geomID,
+     (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_spmd);
+  } else {
   rtcSetIntersectFunction
     (model->embreeSceneHandle,geomID,
      (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_packet);
   rtcSetOccludedFunction
     (model->embreeSceneHandle,geomID,
      (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
-  
+  }
   if (transferFunction) 
     PartiKDGeometry_updateTransferFunction(geom,transferFunction);
 }

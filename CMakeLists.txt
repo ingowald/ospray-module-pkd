@@ -32,6 +32,7 @@ OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
   ospray/AlphaSpheres.cpp
   ospray/AlphaSpheres.ispc
   ospray/TraversePacket.ispc
+  ospray/TraverseSPMD.ispc
   )
 TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------

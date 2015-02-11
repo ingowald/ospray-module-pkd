@@ -100,6 +100,17 @@ void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                    uniform int64 flags);
 
 /*! the 'virtual' traverse function for a pkd geometry */
+void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform THIS,
+                                      varying Ray &ray,
+                                      uniform size_t primID);
+
+/*! the 'virtual' occluded function for a pkd geometry */
+void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform THIS,
+                                     varying Ray &ray,
+                                     uniform size_t primID);
+
+
+/*! the 'virtual' traverse function for a pkd geometry */
 void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
                                       varying Ray &ray,
                                       uniform size_t primID);
@@ -109,7 +120,9 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
                                      varying Ray &ray,
                                      uniform size_t primID);
 
-varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
-                                           uniform size_t primID,
-                                           varying Ray &ray);
 
+/*! if defined, we'll use 'depth%3' for the partition dim; if not,
+  we'll use the lower two mantissa bits of the particle's x
+  coordinate for the split plane dimesnsion (this assumes that the
+  pkd tree has been built as such */
+//#define DIM_FROM_DEPTH 1

@@ -19,7 +19,7 @@
 #define CHECK 1
 
 //#define DIM_FROM_DEPTH 1
-// #define DIM_ROUND_ROBIN 1
+//#define DIM_ROUND_ROBIN 1
 
 namespace ospray {
   using std::endl;

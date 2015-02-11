@@ -30,13 +30,22 @@
 
 #include "ospray/common/Box.ih"
 
+struct ThreePhaseStackEntry {
+  float t_in, t_out, t_sphere_out;
+  size_t sphereID;
+  size_t farChildID;
+#if DIM_FROM_DEPTH
+  int32  dim;
+#endif
+};
+
 inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
-                                                  uniform size_t primID,
+                                                  varying size_t primID,
                                                   varying Ray &ray)
 {
   // typecast "implicit THIS" pointer to the proper geometry type
   PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
-  const uniform float *uniform pos = &THIS->particle[primID].position[0];
+  const uniform float *varying pos = &THIS->particle[primID].position[0];
   // read sphere members required for intersection test
   const float radius = THIS->particleRadius;
   // uniform vec3f center = (uniform vec3f &)THIS->particle[primID].position;
@@ -70,7 +79,7 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   if ((THIS->attribute!=NULL) & (THIS->transferFunction!=NULL)) {
     // -------------------------------------------------------
     // do attribute test
-    uniform float attrib = THIS->attribute[primID];
+    float attrib = THIS->attribute[primID];
 
     // normalize attribute to the [0,1] range (by normalizing relative
     // to the attribute range stored in the min max BVH's root node
@@ -93,30 +102,21 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   return true;
 }
 
-struct ThreePhaseStackEntry {
-  varying float t_in, t_out, t_sphere_out;
-  uniform size_t sphereID;
-  uniform size_t farChildID;
-#if DIM_FROM_DEPTH
-  uniform int32  dim;
-#endif
-};
-
-inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
+inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
                                    varying Ray &ray,
                                    const varying float rdir[3], 
                                    const varying float org[3],
                                    const varying float t_in_0, 
                                    const varying float t_out_0,
-                                   const uniform size_t dir_sign[3],
+                                   const varying size_t dir_sign[3],
                                    const uniform bool isShadowRay
                                    )
 {
   varying ThreePhaseStackEntry stack[32];
-  varying ThreePhaseStackEntry *uniform stackPtr = stack;
+  varying ThreePhaseStackEntry *varying stackPtr = stack;
   
-  uniform size_t nodeID = 0;
-  uniform size_t dim    = 0;
+  size_t nodeID = 0;
+  size_t dim    = 0;
   
   float t_in = t_in_0;
   float t_out = t_out_0;
@@ -130,8 +130,8 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
     // ------------------------------------------------------------------
     while (1) {    
 
-      if (t_in > t_out) break;
-
+      if (t_in >= t_out) break;
+      
       if (nodeID >= numInnerNodes) {
         // this is a leaf node - can't to to a leaf, anyway. Intersect
         // the prim, and be done with it.
@@ -142,7 +142,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
 
 
       if (THIS->innerNode_attributeMask) {
-        const uniform uint32 nodeAttrBits = THIS->innerNode_attributeMask[nodeID];
+        const uint32 nodeAttrBits = THIS->innerNode_attributeMask[nodeID];
         if ((nodeAttrBits & THIS->transferFunction_activeBinBits) == 0)
           break;
       }
@@ -152,7 +152,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
       dim = intPtr[nodeID].x & 3;
 #endif
 
-      const uniform size_t sign = dir_sign[dim];
+      const  size_t sign = dir_sign[dim];
       
       // ------------------------------------------------------------------
       // traversal step: compute distance, then compute intervals for front and back side
@@ -167,44 +167,38 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
       const float t_farChild_out  = t_out;
       const float t_nearChild_out = min(t_out,t_plane_fr);
 
-      // catch the case where all ray segments are on far side
-      if (none(t_in < t_nearChild_out)) {
-        if (none(t_farChild_in < t_farChild_out)) {
-          break;
-        } else {
-          t_in  = t_farChild_in;
-          t_out = t_farChild_out;
-          nodeID = 2*nodeID+2-sign;
-          continue;
-        }
+      // case where ray segment is FULLY on far side (including far of shphere)
+      if (t_in >= t_nearChild_out) {
+        t_in  = t_farChild_in;
+        //t_out = t_farChild_out;
+        nodeID = 2*nodeID+2-sign;
+        continue;
       }
 
-      unmasked { 
-        stackPtr->t_in = 1e20f;
-        stackPtr->t_out = -1e20f;
-        stackPtr->t_sphere_out = -1e20f;
+      // case where ray segment is FULLY on near side (including near of sphere)
+      if (t_out <= t_farChild_in) {
+        //        t_in  = t_nearChild_in;
+        t_out = t_nearChild_out;
+        nodeID = 2*nodeID+1+sign;
+        continue;
       }
-      stackPtr->farChildID = 2*nodeID+2-sign;
-      
-      stackPtr->t_in       = t_farChild_in;
-      stackPtr->t_out      = t_farChild_out;
-      stackPtr->t_sphere_out = t_nearChild_out;
 
-      t_out = t_nearChild_out; 
+      // else, we're on both sides:
 #if DIM_FROM_DEPTH
       dim = (dim == 2)?0:dim+1;
-      
       stackPtr->dim        = dim;
 #endif
-      stackPtr->sphereID   = nodeID;
+      stackPtr->farChildID   = 2*nodeID+2-sign;
+      stackPtr->t_in         = t_farChild_in;
+      stackPtr->t_out        = t_farChild_out;
+      stackPtr->t_sphere_out = t_nearChild_out;
 
-      if (any(t_farChild_in < t_farChild_out)) 
-        ++stackPtr;
-      
-      if (none(t_in < t_out)) 
-        break;
-
+      //t_in  = t_nearChild_in;
+      t_out = t_nearChild_out;
       nodeID = min(2*nodeID+1+sign,numParticles-1);
+      stackPtr->sphereID   = nodeID;
+      
+      ++stackPtr;
 
       continue;
     }
@@ -248,10 +242,10 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
     subpackets of equal sige, and then calls the appropiate
     constant-sign traverse function. this method works for both shadow
     and primary rays, as indicated by the 'isShadowRay' flag */
-inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
-                               varying Ray &ray,
-                               uniform size_t primID,
-                               uniform bool isShadowRay)
+inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
+                              varying Ray &ray,
+                              uniform size_t primID,
+                              uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
   boxtest(ray,THIS->sphereBounds,t_in,t_out);
@@ -270,62 +264,24 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
     ray.org.z 
   };
 
-  uniform size_t dir_sign[3];
-  if (ray.dir.z > 0.f) {
-    dir_sign[2] = 0;
-    if (ray.dir.y > 0.f) {
-      dir_sign[1] = 0;
-      if (ray.dir.x > 0.f) {
-        dir_sign[0] = 0;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      } else {
-        dir_sign[0] = 1;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      }
-    } else {
-      dir_sign[1] = 1;
-      if (ray.dir.x > 0.f) {
-        dir_sign[0] = 0;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      } else {
-        dir_sign[0] = 1;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      }
-    }
-  } else {
-    dir_sign[2] = 1;
-    if (ray.dir.y > 0.f) {
-      dir_sign[1] = 0;
-      if (ray.dir.x > 0.f) {
-        dir_sign[0] = 0;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      } else {
-        dir_sign[0] = 1;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      }
-    } else {
-      dir_sign[1] = 1;
-      if (ray.dir.x > 0.f) {
-        dir_sign[0] = 0;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      } else {
-        dir_sign[0] = 1;
-        pkd_traverse_packet(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
-      }
-    }
-  }
+  size_t dir_sign[3];
+  dir_sign[0] = ray.dir.x < 0.f;
+  dir_sign[1] = ray.dir.y < 0.f;
+  dir_sign[2] = ray.dir.z < 0.f;
+
+  pkd_traverse_spmd(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
 }
 
 /*! the 'virtual' traverse function for a pkd geometry */
-void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform THIS,
+void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform THIS,
                                       varying Ray &ray,
                                       uniform size_t primID)
-{ pkd_traverse_packet(THIS,ray,primID,false); }
+{ pkd_traverse_spmd(THIS,ray,primID,false); }
 
 /*! the 'virtual' occluded function for a pkd geometry */
-void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
+void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform THIS,
                                      varying Ray &ray,
                                      uniform size_t primID)
-{ pkd_traverse_packet(THIS,ray,primID,true); }
+{ pkd_traverse_spmd(THIS,ray,primID,true); }
 
 
