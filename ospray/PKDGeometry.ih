@@ -124,6 +124,52 @@ void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform THIS,
                                      uniform size_t primID);
 
 
+// support 64-bit primitive IDs
+#define PRIMID64 1
+
+#if PRIMID64
+typedef uint64 primID_t;
+#else
+typedef uint32 primID_t;
+#endif
+
+
+struct Particle {
+  float pos[3];
+  uint32 dim;
+};
+
+inline void getParticle(PartiKDGeometry *uniform self,
+                        uniform Particle &p, 
+                        uniform primID_t primID)
+{
+  if (self->isQuantized) {
+    const uniform int64 offset = primID;
+    const uniform uint64 *uniform pos = (const uniform uint64 *uniform)&self->particle[0].position[0];
+    pos += offset;
+    
+    uniform uint64 bits = pos[0];
+    const uniform uint32 mask = (1<<20)-1;
+    p.dim = bits & 3;
+    uniform uint32 ix = (bits >> 2) & mask;
+    uniform uint32 iy = (bits >> 22) & mask;
+    uniform uint32 iz = (bits >> 42) & mask;
+    p.pos[0] = ix;
+    p.pos[1] = iy;
+    p.pos[2] = iz;
+  } else {
+    const uniform int64 offset = 3*primID;
+    const uniform float *uniform pos = &self->particle[0].position[0];
+    pos += offset;
+    p.dim = ((int *uniform)pos)[0] & 3;
+    p.pos[0] = pos[0];
+    p.pos[1] = pos[1];
+    p.pos[2] = pos[2];
+  }
+}
+                        
+
+
 /*! if defined, we'll use 'depth%3' for the partition dim; if not,
   we'll use the lower two mantissa bits of the particle's x
   coordinate for the split plane dimesnsion (this assumes that the

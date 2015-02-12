@@ -43,12 +43,12 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
                                                   varying size_t primID,
                                                   varying Ray &ray)
 {
-  // typecast "implicit THIS" pointer to the proper geometry type
-  PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
-  const uniform float *varying pos = &THIS->particle[primID].position[0];
+  // typecast "implicit self" pointer to the proper geometry type
+  PartiKDGeometry *uniform self = (PartiKDGeometry *uniform)geomPtr;
+  const uniform float *varying pos = &self->particle[primID].position[0];
   // read sphere members required for intersection test
-  const float radius = THIS->particleRadius;
-  // uniform vec3f center = (uniform vec3f &)THIS->particle[primID].position;
+  const float radius = self->particleRadius;
+  // uniform vec3f center = (uniform vec3f &)self->particle[primID].position;
   const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
   
   // perform first half of intersection test ....
@@ -76,33 +76,33 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   else /* miss : */ return false;
 
   // do attribute alpha test, if both attribute and transfer fct are set
-  if ((THIS->attribute!=NULL) & (THIS->transferFunction!=NULL)) {
+  if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
     // -------------------------------------------------------
     // do attribute test
-    float attrib = THIS->attribute[primID];
+    float attrib = self->attribute[primID];
 
     // normalize attribute to the [0,1] range (by normalizing relative
     // to the attribute range stored in the min max BVH's root node
-    const uniform float attrib_lo = THIS->attr_lo;
-    const uniform float attrib_hi = THIS->attr_hi;
+    const uniform float attrib_lo = self->attr_lo;
+    const uniform float attrib_hi = self->attr_hi;
     attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
   
     // compute alpha value from attribute value
     const float alpha
-      = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,attrib);
+      = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
     if (alpha <= .5f)
       return false;
   }
 
   // found a hit - store it
   ray.primID = primID;
-  ray.geomID = THIS->geometry.geomID;
+  ray.geomID = self->geometry.geomID;
   ray.t = t_in;
   ray.Ng = ray.t*ray.dir - A;
   return true;
 }
 
-inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
+inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
                                    varying Ray &ray,
                                    const varying float rdir[3], 
                                    const varying float org[3],
@@ -120,10 +120,10 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
   
   float t_in = t_in_0;
   float t_out = t_out_0;
-  const float radius = THIS->particleRadius;
-  const uniform size_t numInnerNodes = THIS->numInnerNodes;
-  const uniform size_t numParticles  = THIS->numParticles;
-  const uniform PKDParticle *uniform const particle = THIS->particle;
+  const float radius = self->particleRadius;
+  const uniform size_t numInnerNodes = self->numInnerNodes;
+  const uniform size_t numParticles  = self->numParticles;
+  const uniform PKDParticle *uniform const particle = self->particle;
   while (1) {
     // ------------------------------------------------------------------
     // do traversal step(s) as long as possible
@@ -135,20 +135,20 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
       if (nodeID >= numInnerNodes) {
         // this is a leaf node - can't to to a leaf, anyway. Intersect
         // the prim, and be done with it.
-        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
+        PartiKDGeometry_intersectPrim(self,nodeID,ray);
         if (isShadowRay && ray.primID >= 0) return;
         break;
       } 
 
 
-      if (THIS->innerNode_attributeMask) {
-        const uint32 nodeAttrBits = THIS->innerNode_attributeMask[nodeID];
-        if ((nodeAttrBits & THIS->transferFunction_activeBinBits) == 0)
+      if (self->innerNode_attributeMask) {
+        const uint32 nodeAttrBits = self->innerNode_attributeMask[nodeID];
+        if ((nodeAttrBits & self->transferFunction_activeBinBits) == 0)
           break;
       }
 
 #if !DIM_FROM_DEPTH
-      INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
+      INT3 *uniform intPtr = (INT3 *uniform)self->particle;
       dim = intPtr[nodeID].x & 3;
 #endif
 
@@ -223,7 +223,7 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
 
       // intersect the actual node...
       if (t_in < min(stackPtr->t_sphere_out,ray.t)) {
-        PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
+        PartiKDGeometry_intersectPrim(self,stackPtr->sphereID,ray);
         if (isShadowRay && ray.primID >= 0) return;
       } 
       
@@ -242,13 +242,13 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
     subpackets of equal sige, and then calls the appropiate
     constant-sign traverse function. this method works for both shadow
     and primary rays, as indicated by the 'isShadowRay' flag */
-inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
+inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
                               varying Ray &ray,
                               uniform size_t primID,
                               uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
-  boxtest(ray,THIS->sphereBounds,t_in,t_out);
+  boxtest(ray,self->sphereBounds,t_in,t_out);
 
   if (t_out < t_in)
     return;
@@ -269,19 +269,19 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform THIS,
   dir_sign[1] = ray.dir.y < 0.f;
   dir_sign[2] = ray.dir.z < 0.f;
 
-  pkd_traverse_spmd(THIS,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
+  pkd_traverse_spmd(self,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
 }
 
 /*! the 'virtual' traverse function for a pkd geometry */
-void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform THIS,
+void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform self,
                                       varying Ray &ray,
                                       uniform size_t primID)
-{ pkd_traverse_spmd(THIS,ray,primID,false); }
+{ pkd_traverse_spmd(self,ray,primID,false); }
 
 /*! the 'virtual' occluded function for a pkd geometry */
-void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform THIS,
+void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform self,
                                      varying Ray &ray,
                                      uniform size_t primID)
-{ pkd_traverse_spmd(THIS,ray,primID,true); }
+{ pkd_traverse_spmd(self,ray,primID,true); }
 
 
