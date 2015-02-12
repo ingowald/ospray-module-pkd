@@ -293,7 +293,7 @@ namespace ospray {
       
     lBounds.upper[dim] = rBounds.lower[dim] = pos(nodeID,dim);
 
-#if 0
+#if 1
     if ((numLevels - depth) > 20) {
       pthread_t lThread,rThread;
       pthread_create(&lThread,NULL,pkdBuildThread,new PKDBuildJob(this,leftChildOf(nodeID),lBounds,depth+1));
@@ -338,8 +338,6 @@ namespace ospray {
     cout << "#osp:pkd: RANDOMIZED" << endl;
 #endif
 
-
-
     numInnerNodes = numInnerNodesOf(numParticles);
 
     // determine num levels
@@ -378,22 +376,44 @@ namespace ospray {
   void PartiKD::saveOSP(FILE *xml, FILE *bin)
   {
     fprintf(xml,"<PKDGeometry>\n");
-    fprintf(xml,"<position ofs=\"%li\" count=\"%li\" format=\"vec3f\"/>\n",
-            ftell(bin),numParticles);
-    fwrite(&model->position[0],sizeof(ParticleModel::vec_t),numParticles,bin);
-    for (int i=0;i<model->attribute.size();i++) {
-      ParticleModel::Attribute *attr = model->attribute[i];
-      fprintf(xml,"<attribute name=\"%s\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
-              attr->name.c_str(),ftell(bin),numParticles);
-      fwrite(&attr->value[0],sizeof(float),numParticles,bin);
-    }
-    if (!model->type.empty()) {
-      float *f = new float[model->type.size()];
-      for (int i=0;i<model->type.size();i++) f[i] = model->type[i];
-      fprintf(xml,"<attribute name=\"atomType\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
+
+    if (quantizeOutput) {
+      box3f bounds = model->getBounds();
+      for (int i=0;i<model->position.size();i++) {
+        vec3f p = model->position[i];
+        uint64 dim = ((int&)p.x) & 3;
+        
+        uint64 ix = uint64((1<<20) * (p.x-bounds.lower.x) / (bounds.upper.x-bounds.lower.x));
+        uint64 iy = uint64((1<<20) * (p.y-bounds.lower.y) / (bounds.upper.y-bounds.lower.y));
+        uint64 iz = uint64((1<<20) * (p.z-bounds.lower.z) / (bounds.upper.z-bounds.lower.z));
+        
+        ix = std::max(std::min(ix,(1<<20)-1ULL),0ULL);
+        iy = std::max(std::min(iy,(1<<20)-1ULL),0ULL);
+        iz = std::max(std::min(iz,(1<<20)-1ULL),0ULL);
+
+        uint64 quantized = (ix << 2) | (iy << 22) | (iz << 42) | dim;
+        fwrite(&quantized,sizeof(quantized),1,bin);
+      }
+      fprintf(xml,"<position ofs=\"%li\" count=\"%li\" format=\"uint8\"/>\n",
               ftell(bin),numParticles);
-      fwrite(f,sizeof(float),numParticles,bin);
-      delete[] f;
+    } else {
+      fprintf(xml,"<position ofs=\"%li\" count=\"%li\" format=\"vec3f\"/>\n",
+              ftell(bin),numParticles);
+      fwrite(&model->position[0],sizeof(ParticleModel::vec_t),numParticles,bin);
+      for (int i=0;i<model->attribute.size();i++) {
+        ParticleModel::Attribute *attr = model->attribute[i];
+        fprintf(xml,"<attribute name=\"%s\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
+                attr->name.c_str(),ftell(bin),numParticles);
+        fwrite(&attr->value[0],sizeof(float),numParticles,bin);
+      }
+      if (!model->type.empty()) {
+        float *f = new float[model->type.size()];
+        for (int i=0;i<model->type.size();i++) f[i] = model->type[i];
+        fprintf(xml,"<attribute name=\"atomType\" ofs=\"%li\" count=\"%li\" format=\"float\"/>\n",
+                ftell(bin),numParticles);
+        fwrite(f,sizeof(float),numParticles,bin);
+        delete[] f;
+      }
     }
     // if (model->attribute.size() != 0) 
     //   fprintf(xml,"<transferFunction><LinearTransferFunction/></transferFunction>\n");
@@ -408,6 +428,8 @@ namespace ospray {
     std::vector<std::string> input;
     std::string output;
     ParticleModel model;
+    bool roundRobin = false;
+    bool quantize = false;
 
     for (int i=1;i<ac;i++) {
       std::string arg = av[i];
@@ -416,6 +438,10 @@ namespace ospray {
           output = av[++i];
         } else if (arg == "--radius") {
           model.radius = atof(av[++i]);
+        } else if (arg == "--quantize") {
+          quantize = true;
+        } else if (arg == "--round-robin") {
+          roundRobin = true;
         } else {
           throw std::runtime_error("unknown parameter '"+arg+"'");
         }
@@ -444,7 +470,7 @@ namespace ospray {
 
     double before = getSysTime();
     std::cout << "#osp:pkd: building tree ..." << std::endl;
-    PartiKD partiKD;
+    PartiKD partiKD(roundRobin,quantize);
     partiKD.build(&model);
     double after = getSysTime();
     std::cout << "#osp:pkd: tree built (" << (after-before) << " sec)" << std::endl;

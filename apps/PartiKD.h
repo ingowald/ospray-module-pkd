@@ -30,8 +30,12 @@ namespace ospray {
     size_t numParticles;
     size_t numInnerNodes;
     size_t numLevels;
+    int quantizeOutput;
+    int roundRobin;
 
-    PartiKD() : model(NULL), numParticles(0), numInnerNodes(0) {};
+    PartiKD(bool roundRobin=0,int quantizeOutput=0) 
+      : model(NULL), numParticles(0), numInnerNodes(0), roundRobin(roundRobin), quantizeOutput(quantizeOutput)
+    {};
 
     //! build particle tree over given model. WILL REORDER THE MODEL'S ELEMENTS
     void build(ParticleModel *model);
