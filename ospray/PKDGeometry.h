@@ -36,6 +36,7 @@ namespace ospray {
 
     /*! return bounding box of particle centers */
     box3f getBounds() const;
+    vec3f getParticle(size_t i) const;
 
     /*! gets called whenever any of this node's dependencies got changed */
     virtual void dependencyGotChanged(ManagedObject *object);
@@ -46,7 +47,12 @@ namespace ospray {
     Ref<Data> attributeData;
 
     float    *attribute;
-    vec3f    *particle;
+    OSPDataType format; //!< format of the particles: float3, or uint64
+    union {
+      void     *particle;
+      vec3f    *particle3f;
+      uint64   *particle1ul;
+    };
     size_t    numParticles;
     float     particleRadius;
   };

@@ -32,12 +32,32 @@ namespace ospray {
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
   }
 
+    vec3f decodeParticle(size_t i) {
+      size_t mask = (1<<20)-1;
+      size_t ix = (i>> 2)&mask;
+      size_t iy = (i>>22)&mask;
+      size_t iz = (i>>42)&mask;
+      return vec3f(ix,iy,iz);
+    }
+
+  
+  vec3f PartiKDGeometry::getParticle(size_t i) const 
+  {
+    switch(format) {
+    case OSP_FLOAT3: return particle3f[i];
+    case OSP_ULONG: return decodeParticle(particle1ul[i]);
+    default: NOTIMPLEMENTED;
+    };
+  }
+
+
   /*! return bounding box of particle centers */
   box3f PartiKDGeometry::getBounds() const
   {
     box3f b = empty;
-    for (size_t i=0;i<numParticles;i++)
-      b.extend(particle[i]);
+    for (size_t i=0;i<numParticles;i++) {
+      b.extend(getParticle(i));
+    }
     return b;
   }
 
@@ -67,12 +87,15 @@ namespace ospray {
     // - "float radius" *MUST* be defined with the object
     // - "data<vec3f> particles' *MUST* be defined for the object
     // -------------------------------------------------------
-    particleData = getParamData("particles");
+    particleData = getParamData("position");
     if (!particleData)
-      throw std::runtime_error("#osp:pkd: no 'particles' data found with object");
+      throw std::runtime_error("#osp:pkd: no 'position' data found with object");
 
-    particle     = (vec3f*)particleData->data;
+    particle     = particleData->data;
     numParticles = particleData->numItems;
+    format = particleData->type;
+    bool isQuantized = format == OSP_ULONG;
+    PRINT(isQuantized);
     const box3f centerBounds = getBounds();
     
     attributeData = getParamData("attribute",NULL);
@@ -82,7 +105,7 @@ namespace ospray {
     }
 
     bool useSPMD = getParam1i("useSPMD",0);
-    
+
     particleRadius = getParamf("radius",0.f);
     if (particleRadius <= 0.f)
       throw std::runtime_error("#osp:pkd: invalid radius (<= 0.f)");
@@ -129,7 +152,7 @@ namespace ospray {
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now
     // -------------------------------------------------------
-    ispc::PartiKDGeometry_set(getIE(),model->getIE(),useSPMD,
+    ispc::PartiKDGeometry_set(getIE(),model->getIE(),isQuantized,useSPMD,
                               transferFunction?transferFunction->getIE():NULL,
                               particleRadius,
                               numParticles,

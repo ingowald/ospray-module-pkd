@@ -41,36 +41,74 @@ typedef uint32 primID_t;
 
 // uniform int rayID = 0;
 
+struct Particle {
+  float pos[3];
+  uint32 dim;
+};
 
-inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
+inline void getParticle(PartiKDGeometry *uniform self,
+                        uniform Particle &p, 
+                        uniform primID_t primID)
+{
+  if (self->isQuantized) {
+    const uniform int64 offset = primID;
+    const uniform uint64 *uniform pos = (const uniform uint64 *uniform)&self->particle[0].position[0];
+    pos += offset;
+    
+    uniform uint64 bits = pos[0];
+    const uniform uint32 mask = (1<<20)-1;
+    p.dim = bits & 3;
+    uniform uint32 ix = (bits >> 2) & mask;
+    uniform uint32 iy = (bits >> 22) & mask;
+    uniform uint32 iz = (bits >> 42) & mask;
+    p.pos[0] = ix;
+    p.pos[1] = iy;
+    p.pos[2] = iz;
+  } else {
+    const uniform int64 offset = 3*primID;
+    const uniform float *uniform pos = &self->particle[0].position[0];
+    pos += offset;
+    p.dim = ((int *uniform)pos)[0] & 3;
+    p.pos[0] = pos[0];
+    p.pos[1] = pos[1];
+    p.pos[2] = pos[2];
+  }
+}
+                        
+inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
+                                                  uniform Particle &p,
                                                   uniform primID_t primID,
                                                   varying Ray &ray)
 {
-  uniform bool dbg = false; //(rayID == 338);
+  // uniform bool dbg = false; //(rayID == 338);
+  
+  // if (dbg) print("ENTER ISEC primID %\n",primID);
+  // typecast "implicit self" pointer to the proper geometry type
 
-  if (dbg) print("ENTER ISEC primID %\n",primID);
-  // typecast "implicit THIS" pointer to the proper geometry type
-
-  PartiKDGeometry *uniform THIS = (PartiKDGeometry *uniform)geomPtr;
-#if PRIMID64
-  const uniform int64 offset = 3*primID;
-  const uniform float *uniform pos = &THIS->particle[0].position[0];
-  pos += offset;
-#else
-  const uniform float *uniform pos = &THIS->particle[primID].position[0];
-#endif
-  if (dbg) print("ISEC pos0 %\n",THIS->particle);
-  if (dbg) print("ISEC pos ptr %\n",pos);
+  // PartiKDGeometry *uniform self = (PartiKDGeometry *uniform)geomPtr;
+// #if PRIMID64
+//   const uniform int64 offset = 3*primID;
+//   const uniform float *uniform pos = &self->particle[0].position[0];
+//   pos += offset;
+// #else
+//   const uniform float *uniform pos = &self->particle[primID].position[0];
+// #endif
+//   if (dbg) print("ISEC pos0 %\n",self->particle);
+//   if (dbg) print("ISEC pos ptr %\n",pos);
   // read sphere members required for intersection test
-  const float radius = THIS->particleRadius;
-  if (dbg) print("got radius %\n",radius);
-  // uniform vec3f center = (uniform vec3f &)THIS->particle[primID].position;
-  if (dbg) print("getting pos...\n");
-  const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
-  if (dbg) print("GOT pos...\n");
+  const float radius = self->particleRadius;
+  // if (dbg) print("got radius %\n",radius);
+  // // uniform vec3f center = (uniform vec3f &)self->particle[primID].position;
+  // if (dbg) print("getting pos...\n");
+  // const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
+  // if (dbg) print("GOT pos...\n");
+
+  // uniform vec3f center;
+  // uniform uint32 dim;
+  // getParticle(self,primID,center,dim);
   
   // perform first half of intersection test ....
-  const vec3f A = center - ray.org;
+  const vec3f A = make_vec3f(p.pos[0],p.pos[1],p.pos[2]) - ray.org;
 
   const float a = dot(ray.dir,ray.dir);
   const float b = -2.f*dot(ray.dir,A);
@@ -79,7 +117,7 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   const float radical = b*b-4.f*a*c;
   if (radical < 0.f) return false;
 
-  if (dbg) print("ISEC1\n");
+  // if (dbg) print("ISEC1\n");
   // compute second half of intersection test
   const float srad = sqrt(radical);
   
@@ -94,28 +132,28 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   }
   else /* miss : */ return false;
 
-  if (dbg) print("ISEC2\n");
+  // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
-  if ((THIS->attribute!=NULL) & (THIS->transferFunction!=NULL)) {
+  if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
     // -------------------------------------------------------
     // do attribute test
-    uniform float attrib = THIS->attribute[primID];
+    uniform float attrib = self->attribute[primID];
 
     // normalize attribute to the [0,1] range (by normalizing relative
     // to the attribute range stored in the min max BVH's root node
-    const uniform float attrib_lo = THIS->attr_lo;
-    const uniform float attrib_hi = THIS->attr_hi;
+    const uniform float attrib_lo = self->attr_lo;
+    const uniform float attrib_hi = self->attr_hi;
 
     attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
   
     // compute alpha value from attribute value
     const float alpha
-      = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,attrib);
+      = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
     if (alpha <= .5f)
       return false;
   }
 
-  if (dbg) print("ISEC3\n");
+  // if (dbg) print("ISEC3\n");
   // found a hit - store it
 #if PRIMID64
   ray.primID = primID;
@@ -123,10 +161,10 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
 #else
   ray.primID = primID;
 #endif
-  ray.geomID = THIS->geometry.geomID;
+  ray.geomID = self->geometry.geomID;
   ray.t = t_in;
   ray.Ng = ray.t*ray.dir - A;
-  if (dbg) print("LEAVE ISEC HIT\n");
+  // if (dbg) print("LEAVE ISEC HIT\n");
   return true;
 }
 
@@ -134,12 +172,12 @@ struct ThreePhaseStackEntry {
   varying float t_in, t_out, t_sphere_out;
   uniform primID_t sphereID;
   uniform primID_t farChildID;
-#if DIM_FROM_DEPTH
-  uniform int32  dim;
-#endif
+// #if DIM_FROM_DEPTH
+//   uniform int32  dim;
+// #endif
 };
 
-inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
+inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
                                 varying Ray &ray,
                                 const varying float rdir[3], 
                                 const varying float org[3],
@@ -151,7 +189,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
 {
   // ++rayID;
   // print("Ray %\n",rayID);
-  uniform bool dbg = false; //(rayID == 338);
+  // uniform bool dbg = false; //(rayID == 338);
 
   varying ThreePhaseStackEntry stack[64];
   varying ThreePhaseStackEntry *uniform stackPtr = stack;
@@ -161,49 +199,51 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
   
   float t_in = t_in_0;
   float t_out = t_out_0;
-  const float radius = THIS->particleRadius;
-  const uniform primID_t numInnerNodes = THIS->numInnerNodes;
-  const uniform primID_t numParticles  = THIS->numParticles;
-  const uniform PKDParticle *uniform const particle = THIS->particle;
-  if (dbg) print("ENTER TRAVERSAL\n");
+  const float radius = self->particleRadius;
+  const uniform primID_t numInnerNodes = self->numInnerNodes;
+  const uniform primID_t numParticles  = self->numParticles;
+  const uniform PKDParticle *uniform const particle = self->particle;
+  // if (dbg) print("ENTER TRAVERSAL\n");
+  uniform Particle p;
   while (1) {
     // ------------------------------------------------------------------
     // do traversal step(s) as long as possible
     // ------------------------------------------------------------------
-    if (dbg) print("TRAV %\n",nodeID);
+    // if (dbg) print("TRAV %\n",nodeID);
     while (1) {    
-      if (dbg) print("DOWN %\n",nodeID);
+      // if (dbg) print("DOWN %\n",nodeID);
 
       if (t_in > t_out) break;
 
+      getParticle(self,p,nodeID);
       if (nodeID >= numInnerNodes) {
         // this is a leaf node - can't to to a leaf, anyway. Intersect
         // the prim, and be done with it.
-        if (dbg) print("LEAFISEC0\n");
-        PartiKDGeometry_intersectPrim(THIS,nodeID,ray);
-        if (dbg) print("LEAFISEC1\n");
+        // if (dbg) print("LEAFISEC0\n");
+        PartiKDGeometry_intersectPrim(self,p,nodeID,ray);
+        // if (dbg) print("LEAFISEC1\n");
         if (isShadowRay && ray.primID >= 0) return;
         break;
       } 
 
-
-      if (THIS->innerNode_attributeMask) {
-        const uniform uint32 nodeAttrBits = THIS->innerNode_attributeMask[nodeID];
-        if ((nodeAttrBits & THIS->transferFunction_activeBinBits) == 0)
+      if (self->innerNode_attributeMask) {
+        const uniform uint32 nodeAttrBits = self->innerNode_attributeMask[nodeID];
+        if ((nodeAttrBits & self->transferFunction_activeBinBits) == 0)
           break;
       }
 
-#if !DIM_FROM_DEPTH
-      INT3 *uniform intPtr = (INT3 *uniform)THIS->particle;
-      dim = intPtr[nodeID].x & 3;
-#endif
+// #if !DIM_FROM_DEPTH
+      // INT3 *uniform intPtr = (INT3 *uniform)self->particle;
+      // dim = intPtr[nodeID].x & 3;
+      dim = p.dim;
+// #endif
 
       const uniform size_t sign = dir_sign[dim];
       
       // ------------------------------------------------------------------
       // traversal step: compute distance, then compute intervals for front and back side
       // ------------------------------------------------------------------
-      const float org_to_node_dim = particle[nodeID].position[dim] - org[dim];
+      const float org_to_node_dim = p.pos[dim] - org[dim];
       const float t_plane_0  = (org_to_node_dim - radius) * rdir[dim];
       const float t_plane_1  = (org_to_node_dim + radius) * rdir[dim];
       const float t_plane_nr = min(t_plane_0,t_plane_1);
@@ -250,16 +290,16 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
       if (none(t_in < t_out)) 
         break;
 
-      if (dbg) print("nodeID a0 %\n",nodeID);
+      // if (dbg) print("nodeID a0 %\n",nodeID);
       nodeID = min(2*nodeID+1+sign,numParticles-1);
-      if (dbg) print("nodeID a1 %\n",nodeID);
+      // if (dbg) print("nodeID a1 %\n",nodeID);
       continue;
     }
     // ------------------------------------------------------------------
     // couldn't go down any further; pop a node from stack
     // ------------------------------------------------------------------
     while (1) {
-      if (dbg) print("POP\n");
+      // if (dbg) print("POP\n");
       // pop as long as we have to ... or until nothing is left to pop.
       if (stackPtr == stack) {
         return;
@@ -277,22 +317,24 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform THIS,
 
       // intersect the actual node...
       if (t_in < min(stackPtr->t_sphere_out,ray.t)) {
-        PartiKDGeometry_intersectPrim(THIS,stackPtr->sphereID,ray);
+        uniform Particle p;
+        getParticle(self,p,stackPtr->sphereID);
+        PartiKDGeometry_intersectPrim(self,p,stackPtr->sphereID,ray);
         if (isShadowRay && ray.primID >= 0) return;
       } 
       
       // do the distance test again, we might just have shortened the ray...
       unmasked { t_out  = min(t_out,ray.t); }
-      if (dbg) print("nodeID b0 %\n",nodeID);
+      // if (dbg) print("nodeID b0 %\n",nodeID);
       nodeID = min(stackPtr->farChildID,numParticles-1);
-      if (dbg) print("nodeID b1 %\n",nodeID);
+      // if (dbg) print("nodeID b1 %\n",nodeID);
 #if DIM_FROM_DEPTH
       dim    = stackPtr->dim;
 #endif
       break;
     }
   }
-  if (dbg) print("DONE TRAVERSAL\n");
+  // if (dbg) print("DONE TRAVERSAL\n");
 }
 
 /*! generic traverse/occluded function that splits the packet into

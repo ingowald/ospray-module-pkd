@@ -30,11 +30,10 @@ namespace ospray {
     size_t numParticles;
     size_t numInnerNodes;
     size_t numLevels;
-    int quantizeOutput;
     int roundRobin;
 
-    PartiKD(bool roundRobin=0,int quantizeOutput=0) 
-      : model(NULL), numParticles(0), numInnerNodes(0), roundRobin(roundRobin), quantizeOutput(quantizeOutput)
+    PartiKD(bool roundRobin=0) 
+      : model(NULL), numParticles(0), numInnerNodes(0), roundRobin(roundRobin)
     {};
 
     //! build particle tree over given model. WILL REORDER THE MODEL'S ELEMENTS
@@ -42,8 +41,10 @@ namespace ospray {
     
     //! save to xml+binary file
     void saveOSP(const std::string &fileName);
+    void saveOSPQuantized(const std::string &fileName);
     //! save to xml+binary file(s)
     void saveOSP(FILE *xml, FILE *bin);
+    void saveOSPQuantized(FILE *xml, FILE *bin);
 
     /*! @{ \brief Balanced KD-tree helper functions */
     

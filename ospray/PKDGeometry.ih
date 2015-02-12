@@ -40,7 +40,10 @@ struct INT3 {
 struct PartiKDGeometry {
   //! inherited geometry fields  
   uniform Geometry geometry;
-  
+
+  //! flag specifying whether this is a quantized version of the particles
+  bool isQuantized;
+
   //! number of particles
   uint64 numParticles;
   //! number of inner nodes

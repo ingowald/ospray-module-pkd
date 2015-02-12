@@ -153,6 +153,7 @@ export void PartiKDGeometry_updateTransferFunction(void *uniform _THIS,
 /*! 'constructor' for a newly created pkd geometry */
 export void PartiKDGeometry_set(void       *uniform _geom,
                                 void           *uniform _model,
+                                uniform bool isQuantized,
                                 uniform bool useSPMD,
                                 void           *uniform transferFunction,
                                 float           uniform particleRadius,
@@ -172,6 +173,7 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   uniform uint32 geomID = rtcNewUserGeometry(model->embreeSceneHandle,1);
   
   geom->geometry.model  = model;
+  geom->isQuantized     = isQuantized;
   geom->geometry.geomID = geomID;
   geom->particleRadius  = particleRadius;
   geom->particle        = particle;
