@@ -31,6 +31,8 @@ OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
   ospray/MinMaxBVH2.ispc
   ospray/AlphaSpheres.cpp
   ospray/AlphaSpheres.ispc
+  ospray/TraversePacket.ispc
+  ospray/TraverseSPMD.ispc
   )
 TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
@@ -42,6 +44,7 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     apps/ParticleModel.cpp
     #importers
     apps/ImportUIntah.cpp
+    apps/ImportCOSMOS.cpp
     apps/ImportXYZ.cpp
     apps/ImportCosmicWeb.cpp
     )

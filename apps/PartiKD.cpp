@@ -19,7 +19,7 @@
 #define CHECK 1
 
 //#define DIM_FROM_DEPTH 1
-// #define DIM_ROUND_ROBIN 1
+//#define DIM_ROUND_ROBIN 1
 
 namespace ospray {
   using std::endl;
@@ -85,7 +85,7 @@ namespace ospray {
 #if FAST
 #  define POS(idx,dim) position[idx].x
 #else
-# define POS(idx,dim) pos(idx,dim)
+#  define POS(idx,dim) pos(idx,dim)
 #endif
 
 

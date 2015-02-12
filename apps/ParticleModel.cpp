@@ -21,6 +21,7 @@ namespace ospray {
   // file importers
   namespace uintah { void importModel(ParticleModel *model, const embree::FileName &s); }
   namespace xyz { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace cosmos { void importModel(ParticleModel *model, const embree::FileName &s); }
   namespace cosmic_web { void importModel(ParticleModel *model, const embree::FileName &s); }
 
   /*! helper function that creates a pseudo-random color for a given
@@ -63,6 +64,9 @@ namespace ospray {
     } else if (fn.ext() == "xyz") {
       // assume uintah format
       xyz::importModel(this,fn);
+    } else if (fn.ext() == "cosmos") {
+      // assume uintah format
+      cosmos::importModel(this,fn);
     } else {
       throw std::runtime_error("unknonw file format '"+fn.str()+"'");
     }
