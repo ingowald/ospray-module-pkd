@@ -387,9 +387,9 @@ namespace ospray {
         uint64 iy = uint64((1<<20) * (p.y-bounds.lower.y) / (bounds.upper.y-bounds.lower.y));
         uint64 iz = uint64((1<<20) * (p.z-bounds.lower.z) / (bounds.upper.z-bounds.lower.z));
         
-        ix = std::max(std::min(ix,(1<<20)-1ULL),0ULL);
-        iy = std::max(std::min(iy,(1<<20)-1ULL),0ULL);
-        iz = std::max(std::min(iz,(1<<20)-1ULL),0ULL);
+        ix = std::max(std::min(ix,((uint64)1<<20)-1),(uint64)0);
+        iy = std::max(std::min(iy,((uint64)1<<20)-1),(uint64)0);
+        iz = std::max(std::min(iz,((uint64)1<<20)-1),(uint64)0);
 
         uint64 quantized = (ix << 2) | (iy << 22) | (iz << 42) | dim;
         fwrite(&quantized,sizeof(quantized),1,bin);
