@@ -69,9 +69,9 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const float attrib
       = (attrib_org - attrib_lo)
       * rcp(attrib_hi - attrib_lo + 1e-10f);
-    if (attrib >= 1.f || attrib <= 0.f) 
-      print("ATTRIB OUT OF RANGE:\n org %\n remapped %\n ID %:%\n range % %\n",
-            attrib_org,attrib,primID64,ray.primID,attrib_lo,attrib_hi);
+    // if (attrib >= 1.f || attrib <= 0.f) 
+    //   print("ATTRIB OUT OF RANGE:\n org %\n remapped %\n ID %:%\n range % %\n",
+    //         attrib_org,attrib,primID64,ray.primID,attrib_lo,attrib_hi);
     // compute alpha value from attribute value
     const float alpha = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,
                                                                    attrib);

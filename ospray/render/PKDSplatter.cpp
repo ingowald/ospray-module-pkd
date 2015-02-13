@@ -44,7 +44,7 @@ namespace ospray {
       : model(NULL), camera(NULL) 
     {
       ispcEquivalent = ispc::PKDSplatter_create(this);
-    }
+   }
     
     void PKDSplatter::commit()
     {
@@ -53,12 +53,14 @@ namespace ospray {
       model = (Model *)getParamObject("world",NULL);
       model = (Model *)getParamObject("model",model);
       camera = (Camera *)getParamObject("camera",NULL);
-      splatWeight = getParamf("weight",.001f);
-      splatRadius = getParamf("radius",10.f);
+      splatWeight = getParamf("weight",.01f);
+      splatRadius = getParamf("radius",.2f);
 
+      if (!model) return;
       assert(model->geometry.size() == 1);
       PartiKDGeometry *pkd = dynamic_cast<PartiKDGeometry *>(model->geometry[0].ptr);
       assert(pkd);
+
       ispc::PKDSplatter_set(getIE(),
                             model?model->getIE():NULL,
                             pkd?pkd->getIE():NULL,
@@ -66,7 +68,7 @@ namespace ospray {
                             splatRadius,splatWeight);
     }
     
-    OSP_REGISTER_RENDERER(PKDSplatter,pkd_splat);
+    OSP_REGISTER_RENDERER(PKDSplatter,pkd_splatter);
   } // ::ospray::pkd
 } // ::ospray
 
