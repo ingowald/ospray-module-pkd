@@ -32,6 +32,8 @@
 
 // uniform int rayID = 0;
 
+#define LOD 0
+
 inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
                                                   uniform Particle &p,
                                                   uniform primID_t primID,
@@ -53,7 +55,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 //   if (dbg) print("ISEC pos0 %\n",self->particle);
 //   if (dbg) print("ISEC pos ptr %\n",pos);
   // read sphere members required for intersection test
-  const float radius = self->particleRadius;
   // if (dbg) print("got radius %\n",radius);
   // // uniform vec3f center = (uniform vec3f &)self->particle[primID].position;
   // if (dbg) print("getting pos...\n");
@@ -69,7 +70,13 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 
   const float a = dot(ray.dir,ray.dir);
   const float b = -2.f*dot(ray.dir,A);
-  const float c = dot(A,A)-radius*radius;
+	const float AA = dot(A,A);
+#if LOD
+  const float radius = self->particleRadius * max(1.f, .5f * sqrt(sqrt(sqrt(AA))));
+#else	
+  const float radius = self->particleRadius;
+#endif	
+	const float c = AA-radius*radius;
   
   const float radical = b*b-4.f*a*c;
   if (radical < 0.f) return false;
@@ -173,6 +180,20 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
       if (t_in > t_out) break;
 
       getParticle(self,p,nodeID);
+
+#if LOD			
+			const float dist_lod = max(1.f, .5f * sqrt(sqrt(t_in)));
+			if (nodeID > 4096)
+			{
+				uniform Particle parent;
+				getParticle(self,parent,(nodeID-1)>>1);
+				uniform vec3f d = make_vec3f(p.pos[0] - parent.pos[0], p.pos[1] - parent.pos[1], p.pos[2] - parent.pos[2]);
+				//if distance is < 1 pixel, previous point was "good enough"; break;
+				if (dot(d,d) < dist_lod)
+						break;
+			}
+#endif
+			
       if (nodeID >= numInnerNodes) {
         // this is a leaf node - can't to to a leaf, anyway. Intersect
         // the prim, and be done with it.
@@ -196,13 +217,18 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
 // #endif
 
       const uniform size_t sign = dir_sign[dim];
-      
+			
       // ------------------------------------------------------------------
       // traversal step: compute distance, then compute intervals for front and back side
       // ------------------------------------------------------------------
       const float org_to_node_dim = p.pos[dim] - org[dim];
+#if LOD
+      const float t_plane_0  = (org_to_node_dim - radius * dist_lod) * rdir[dim];
+      const float t_plane_1  = (org_to_node_dim + radius * dist_lod) * rdir[dim];
+#else
       const float t_plane_0  = (org_to_node_dim - radius) * rdir[dim];
-      const float t_plane_1  = (org_to_node_dim + radius) * rdir[dim];
+      const float t_plane_1  = (org_to_node_dim + radius) * rdir[dim];			
+#endif
       const float t_plane_nr = min(t_plane_0,t_plane_1);
       const float t_plane_fr = max(t_plane_0,t_plane_1);
 

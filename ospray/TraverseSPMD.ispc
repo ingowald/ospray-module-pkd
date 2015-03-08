@@ -30,6 +30,8 @@
 
 #include "ospray/common/Box.ih"
 
+#define modify_radius(t) 4.f
+
 struct ThreePhaseStackEntry {
   float t_in, t_out, t_sphere_out;
   size_t sphereID;
@@ -47,7 +49,7 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
   PartiKDGeometry *uniform self = (PartiKDGeometry *uniform)geomPtr;
   const uniform float *varying pos = &self->particle[primID].position[0];
   // read sphere members required for intersection test
-  const float radius = self->particleRadius;
+  const float radius = self->particleRadius * modify_radius(ray.t);
   // uniform vec3f center = (uniform vec3f &)self->particle[primID].position;
   const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
   
@@ -120,7 +122,7 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
   
   float t_in = t_in_0;
   float t_out = t_out_0;
-  const float radius = self->particleRadius;
+  const float radius = self->particleRadius * modify_radius(t_in_0);
   const uniform size_t numInnerNodes = self->numInnerNodes;
   const uniform size_t numParticles  = self->numParticles;
   const uniform PKDParticle *uniform const particle = self->particle;
