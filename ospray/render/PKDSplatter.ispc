@@ -24,6 +24,10 @@
 // this module
 #include "../PKDGeometry.ih"
 
+// if enabled, we're doing some LOD on the tree traversal ...
+// #define LOD 1
+
+
 struct PKDSplatter
 {
   Renderer inherited;
@@ -74,11 +78,6 @@ struct SplatStackEntry {
   varying float t0, t1;
   uniform uint64 nodeID;
 };
-
-
-
-
-
 
 
 
@@ -256,6 +255,122 @@ inline void pkd_splat_packet(uniform PKDSplatter *uniform self,
   // if (dbg) print("DONE TRAVERSAL\n");
 }
 
+struct BOX3f {
+  float lower[3], upper[3];
+};
+
+struct LODStackEntry {
+  uniform BOX3f    bounds;
+  uniform primID_t nodeID;
+};
+
+
+
+
+inline vec3f make_vec3f(float f[3]) { return make_vec3f(f[0],f[1],f[2]); }
+inline uniform vec3f make_vec3f(uniform float f[3]) { return make_vec3f(f[0],f[1],f[2]); }
+
+inline bool boxtest(uniform BOX3f &box,
+                    Ray& ray,
+                    float& t0,
+                    float& t1)
+{
+  vec3f mins = mul(sub(make_vec3f(box.lower), ray.org), rcp(ray.dir));
+  vec3f maxs = mul(sub(make_vec3f(box.upper), ray.org), rcp(ray.dir));
+  
+  t0 = max(max(ray.t0, 
+               min(mins.x,maxs.x)),
+           max(min(mins.y,maxs.y),
+               min(mins.z,maxs.z)));
+  
+  t1 = min(min(ray.t, 
+               max(mins.x,maxs.x)),
+           min(max(mins.y,maxs.y),
+               max(mins.z,maxs.z)));
+
+  return t0 <= t1;
+}
+
+/*! LOD-based traversal technique ... */
+inline void pkd_splat_LOD(uniform PKDSplatter *uniform self,
+                          varying Ray &ray,
+                          varying float &sample)
+{
+  // factor for chosing whether to replace a subtree with a LOD-representation
+  const float lodFactor = .001f;
+  sample = 0.f;
+
+  const float radius = self->radius;
+  const uniform primID_t numInnerNodes = self->pkd->numInnerNodes;
+  const uniform primID_t numParticles  = self->pkd->numParticles;
+
+  uniform BOX3f bounds;
+  bounds.lower[0] = self->pkd->sphereBounds.lower.x;
+  bounds.lower[1] = self->pkd->sphereBounds.lower.y;
+  bounds.lower[2] = self->pkd->sphereBounds.lower.z;
+  bounds.upper[0] = self->pkd->sphereBounds.upper.x;
+  bounds.upper[1] = self->pkd->sphereBounds.upper.y;
+  bounds.upper[2] = self->pkd->sphereBounds.upper.z;
+
+  uniform LODStackEntry nodeStack[128];
+  nodeStack[0].bounds = bounds;
+  nodeStack[0].nodeID = 0;
+  uniform int stackPtr = 1;
+  
+
+  uniform primID_t nodeID = 0;
+
+  const varying vec3f nDir = normalize(ray.dir); //&nDir,
+  const float ray_dir[3] = { ray.dir.x,ray.dir.y,ray.dir.z };
+  uniform Particle p;
+
+  while (stackPtr > 0) {
+    --stackPtr;
+    bounds = nodeStack[stackPtr].bounds;
+    nodeID = nodeStack[stackPtr].nodeID;
+    float t0, t1;
+    if (!boxtest(bounds,ray,t0,t1)) 
+      continue;
+
+    const uniform float width = min(min(bounds.upper[0]-bounds.lower[0],
+                                        bounds.upper[1]-bounds.lower[1]),
+                                    bounds.upper[2]-bounds.lower[2]);
+    // const uniform float vec3f center = make_vec3f(0.5f*(bounds.lower[0]+bounds.upper[0]),
+    //                                               0.5f*(bounds.lower[1]+bounds.upper[1]),
+    //                                               0.5f*(bounds.lower[2]+bounds.upper[2]));
+    // const uniform float dist = max(1e-6f,length(center - ray.org));
+    const float dist = t0;
+
+    if (width < lodFactor * dist) {
+      // replace by LOD effect ...
+
+      
+      //      TODO;
+    } else {
+      getParticle(self->pkd,p,nodeID);
+      splatParticle(self,p,ray,nDir,sample);
+      
+      uniform BOX3f lBounds = bounds;
+      uniform BOX3f rBounds = bounds;
+      lBounds.upper[p.dim] = rBounds.lower[p.dim] = p.pos[p.dim];
+      if (any(ray_dir[p.dim] > 0.f)) {
+        nodeStack[stackPtr+0].bounds = lBounds;
+        nodeStack[stackPtr+0].nodeID = 2*nodeID+1;
+        nodeStack[stackPtr+1].bounds = rBounds;
+        nodeStack[stackPtr+1].nodeID = 2*nodeID+2;
+      } else {
+        nodeStack[stackPtr+1].bounds = lBounds;
+        nodeStack[stackPtr+1].nodeID = 2*nodeID+1;
+        nodeStack[stackPtr+0].bounds = rBounds;
+        nodeStack[stackPtr+0].nodeID = 2*nodeID+2;
+      }
+      stackPtr += 2;
+    }
+
+  }
+
+}
+
 /*! generic traverse/occluded function that splits the packet into
   subpackets of equal sige, and then calls the appropiate
   constant-sign traverse function. this method works for both shadow
@@ -334,121 +449,124 @@ void PKD_splatParticles(uniform PKDSplatter *uniform self,
                         varying Ray &ray,
                         varying float &sample)
 {
-#if 1
-  pkd_splat_packet(self,ray,sample);
+#if LOD
+  pkd_splat_LOD(self,ray,sample);
 #else
-  float t0 = ray.t0, t1 = ray.t;
-  uniform PartiKDGeometry *uniform pkd = self->pkd;
-  boxtest(ray,pkd->sphereBounds,t0,t1);
-
-  if (t1 < t0)
-    return;
-
-  uniform uint64 nodeID = 0;
-  uniform SplatStackEntry stackBase[64];
-  uniform SplatStackEntry *uniform stackPtr = stackBase;
-  const uniform float radius = self->radius;
-  const uniform float weight = self->weight;
-  const uniform uint64 numInnerNodes = pkd->numInnerNodes;
-  const uniform uint64 numParticles  = pkd->numParticles;
-  // const uniform uint64 *uniform const particle = self->particle;
-
-  const varying float rdir[3] = { 
-    safe_rcp(ray.dir.x),
-    safe_rcp(ray.dir.y),
-    safe_rcp(ray.dir.z) 
-  };
-  const varying float org[3]  = { 
-    ray.org.x, 
-    ray.org.y, 
-    ray.org.z 
-  };
-  const vec3f nDir = normalize(ray.dir);
-
-  while (1)  {
-    while (1) {
-      // uniform uint32 pBits = particle[nodeID];
-      uniform Particle p;
-      getParticle(self->pkd,p,nodeID);
-      splatParticle(make_vec3f(p.pos[0],p.pos[1],p.pos[2]),
-                    radius,weight,nDir,ray,sample);
-      if (sample >= 1.f) return;
-      
-      if (nodeID >= numInnerNodes) 
-        break;
-
-      const float org_to_node_dim = p.pos[p.dim] - org[p.dim];
-      const float t_plane_0  = (org_to_node_dim - radius) * rdir[p.dim];
-      const float t_plane_1  = (org_to_node_dim + radius) * rdir[p.dim];
-      
-      float t0l = t0;
-      float t1l = t1;
-      float t0r = t0;
-      float t1r = t1;
-      if (rdir[p.dim] < 0.f) {
-        t0l = max(t0l,t_plane_1);
-        t1r = min(t1r,t_plane_0);
-      } else {
-        t0r = max(t0r,t_plane_0);
-        t1l = min(t1l,t_plane_1);
-      }
-      uniform bool any_l = any(t0l < t1l);
-      uniform bool any_r = any(t0r < t1r);
-      uniform uint64 node_l = 2*nodeID+1;
-      uniform uint64 node_r = node_l+1;
-
-      if (any_l) {
-        if (any_r) {
-          if (any((t0l < t1l) & (t0r < t1r) & (rdir[p.dim] < 0))) {
-            unmasked {
-              stackPtr->t0 = t0l;
-              stackPtr->t1 = t1l;
-            }
-            stackPtr->nodeID = node_l;
-            ++stackPtr;
-            nodeID = node_r;
-            t0 = t0r;
-            t1 = t1r;
-          } else {
-            unmasked {
-              stackPtr->t0 = t0r;
-              stackPtr->t1 = t1r;
-            }
-            stackPtr->nodeID = node_r;
-            ++stackPtr;
-            nodeID = node_l;
-            t0 = t0l;
-            t1 = t1l;
-          }
-        } else {
-          nodeID = node_l;
-          t0 = t0l;
-          t1 = t1l;
-        }
-      } else {
-        if (any_r) {
-          nodeID = node_r;
-          t0 = t0r;
-          t1 = t1r;
-        } else {
-          break;
-        }
-      }
-    }
-    // pop
-    while (1) {
-      --stackPtr;
-      if (stackPtr <= stackBase) return;
-      unmasked {
-        t0 = stackPtr->t0;
-        t1 = stackPtr->t1;
-      }
-      nodeID = stackPtr->nodeID;
-      if (none(t0 < t1)) continue;
-      break;
-    }
-  }
+  pkd_splat_packet(self,ray,sample);
 #endif
+
+// //   float t0 = ray.t0, t1 = ray.t;
+// //   uniform PartiKDGeometry *uniform pkd = self->pkd;
+// //   boxtest(ray,pkd->sphereBounds,t0,t1);
+
+// //   if (t1 < t0)
+// //     return;
+
+// //   uniform uint64 nodeID = 0;
+// //   uniform SplatStackEntry stackBase[64];
+// //   uniform SplatStackEntry *uniform stackPtr = stackBase;
+// //   const uniform float radius = self->radius;
+// //   const uniform float weight = self->weight;
+// //   const uniform uint64 numInnerNodes = pkd->numInnerNodes;
+// //   const uniform uint64 numParticles  = pkd->numParticles;
+// //   // const uniform uint64 *uniform const particle = self->particle;
+
+// //   const varying float rdir[3] = { 
+// //     safe_rcp(ray.dir.x),
+// //     safe_rcp(ray.dir.y),
+// //     safe_rcp(ray.dir.z) 
+// //   };
+// //   const varying float org[3]  = { 
+// //     ray.org.x, 
+// //     ray.org.y, 
+// //     ray.org.z 
+// //   };
+// //   const vec3f nDir = normalize(ray.dir);
+
+// //   while (1)  {
+// //     while (1) {
+// //       // uniform uint32 pBits = particle[nodeID];
+// //       uniform Particle p;
+// //       getParticle(self->pkd,p,nodeID);
+// //       splatParticle(make_vec3f(p.pos[0],p.pos[1],p.pos[2]),
+// //                     radius,weight,nDir,ray,sample);
+// //       if (sample >= 1.f) return;
+      
+// //       if (nodeID >= numInnerNodes) 
+// //         break;
+
+// //       const float org_to_node_dim = p.pos[p.dim] - org[p.dim];
+// //       const float t_plane_0  = (org_to_node_dim - radius) * rdir[p.dim];
+// //       const float t_plane_1  = (org_to_node_dim + radius) * rdir[p.dim];
+      
+// //       float t0l = t0;
+// //       float t1l = t1;
+// //       float t0r = t0;
+// //       float t1r = t1;
+// //       if (rdir[p.dim] < 0.f) {
+// //         t0l = max(t0l,t_plane_1);
+// //         t1r = min(t1r,t_plane_0);
+// //       } else {
+// //         t0r = max(t0r,t_plane_0);
+// //         t1l = min(t1l,t_plane_1);
+// //       }
+// //       uniform bool any_l = any(t0l < t1l);
+// //       uniform bool any_r = any(t0r < t1r);
+// //       uniform uint64 node_l = 2*nodeID+1;
+// //       uniform uint64 node_r = node_l+1;
+
+// //       if (any_l) {
+// //         if (any_r) {
+// //           if (any((t0l < t1l) & (t0r < t1r) & (rdir[p.dim] < 0))) {
+// //             unmasked {
+// //               stackPtr->t0 = t0l;
+// //               stackPtr->t1 = t1l;
+// //             }
+// //             stackPtr->nodeID = node_l;
+// //             ++stackPtr;
+// //             nodeID = node_r;
+// //             t0 = t0r;
+// //             t1 = t1r;
+// //           } else {
+// //             unmasked {
+// //               stackPtr->t0 = t0r;
+// //               stackPtr->t1 = t1r;
+// //             }
+// //             stackPtr->nodeID = node_r;
+// //             ++stackPtr;
+// //             nodeID = node_l;
+// //             t0 = t0l;
+// //             t1 = t1l;
+// //           }
+// //         } else {
+// //           nodeID = node_l;
+// //           t0 = t0l;
+// //           t1 = t1l;
+// //         }
+// //       } else {
+// //         if (any_r) {
+// //           nodeID = node_r;
+// //           t0 = t0r;
+// //           t1 = t1r;
+// //         } else {
+// //           break;
+// //         }
+// //       }
+// //     }
+// //     // pop
+// //     while (1) {
+// //       --stackPtr;
+// //       if (stackPtr <= stackBase) return;
+// //       unmasked {
+// //         t0 = stackPtr->t0;
+// //         t1 = stackPtr->t1;
+// //       }
+// //       nodeID = stackPtr->nodeID;
+// //       if (none(t0 < t1)) continue;
+// //       break;
+// //     }
+// //   }
+// #endif
 }
 
 void PKDSplatter_renderSample(uniform Renderer *uniform _renderer,
