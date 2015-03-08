@@ -39,6 +39,9 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
   uniform PartiKDGeometry *uniform THIS = (uniform PartiKDGeometry *uniform)geometry;
   dg.geometry = geometry;
   dg.material = geometry->material;
+
+  dg.P = ray.org + ray.t * ray.dir;
+
   vec3f Ng = ray.Ng;
   vec3f Ns = Ng;
 
