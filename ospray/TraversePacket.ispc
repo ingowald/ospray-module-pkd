@@ -72,7 +72,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
   const float b = -2.f*dot(ray.dir,A);
 	const float AA = dot(A,A);
 #if LOD
-  const float radius = self->particleRadius * max(1.f, .5f * sqrt(sqrt(sqrt(AA))));
+  const float radius = self->particleRadius * max(1.f, (1.f/16.f) * sqrt(sqrt(AA)));
 #else	
   const float radius = self->particleRadius;
 #endif	
@@ -182,7 +182,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
       getParticle(self,p,nodeID);
 
 #if LOD			
-			const float dist_lod = max(1.f, .5f * sqrt(sqrt(t_in)));
+			const float dist_lod = max(1.f, (1.f/16.f) * sqrt(t_in));
 			if (nodeID > 4096)
 			{
 				uniform Particle parent;
