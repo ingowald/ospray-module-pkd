@@ -46,8 +46,14 @@ namespace ospray {
     if (fn.ext() == "RANDOM") {
       size_t num = atol(fn.str().c_str());
       std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;
-      for (int i=0;i<num;i++)
-        position.push_back(vec3f(drand48(),drand48(),drand48()));
+      for (int i=0;i<num;i++) {
+        vec3f p(drand48(),drand48(),drand48());
+        position.push_back(p);
+        addAttribute("random",
+                     cos(11*p.x+5*p.y+7*p.z)+
+                     cos(5*p.y+7*p.z)+
+                     sin(13*p.x*p.y+11.f*p.x)*cos(11*p.z));
+      }
     } else if (fn.ext() == "REGULAR") {
       size_t num = atol(fn.str().c_str());
       std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;

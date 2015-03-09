@@ -343,8 +343,10 @@ inline void pkd_splat_LOD(uniform PKDSplatter *uniform self,
 
     if (width < lodFactor * dist) {
       // replace by LOD effect ...
-
-      
+      uniform int depth = stackPtr;
+      float numParticlesInSubtree = ((float)(numParticles)) / ((float)(1<<depth));
+      // assume we're 50% of power on average
+      sample += numParticlesInSubtree * .5f * self->weight;
       //      TODO;
     } else {
       getParticle(self->pkd,p,nodeID);
