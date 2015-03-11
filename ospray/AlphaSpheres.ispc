@@ -80,19 +80,7 @@ static void AlphaSpheres_postIntersect(uniform Geometry *uniform geometry,
                                        uniform int64 flags)
 {
   uniform AlphaSpheres *uniform THIS = (uniform AlphaSpheres *uniform)geometry;
-  dg.geometry = geometry;
-  dg.material = geometry->material;
-  vec3f Ng = ray.Ng;
-  vec3f Ns = Ng;
-
-  if (flags & DG_NORMALIZE) {
-    Ng = normalize(Ng);
-    Ns = normalize(Ns);
-  }
-  if (flags & DG_FACEFORWARD) {
-    if (dot(ray.dir,Ng) >= 0.f) Ng = neg(Ng);
-    if (dot(ray.dir,Ns) >= 0.f) Ns = neg(Ns);
-  }
+  dg.Ng = dg.Ns = ray.Ng;
 
   if ((flags & DG_COLOR) && (THIS->attribute) && (THIS->transferFunction)) {
     // compute base pointer to actual sphere we are intersecting
@@ -121,9 +109,6 @@ static void AlphaSpheres_postIntersect(uniform Geometry *uniform geometry,
       dg.color = make_vec4f(color.x,color.y,color.z,alpha);
     }
   }
-
-  dg.Ng = Ng;
-  dg.Ns = Ns;
 }
 
 // static void PKDGeometry_postIntersect(uniform Geometry *uniform geometry,
@@ -133,19 +118,7 @@ static void AlphaSpheres_postIntersect(uniform Geometry *uniform geometry,
 //                                       uniform int64 flags)
 // {
 //   uniform PKDGeometry *uniform THIS = (uniform PKDGeometry *uniform)geometry;
-//   dg.geometry = geometry;
-//   dg.material = geometry->material;
-//   vec3f Ng = ray.Ng;
-//   vec3f Ns = Ng;
-
-//   if (flags & DG_NORMALIZE) {
-//     Ng = normalize(Ng);
-//     Ns = normalize(Ns);
-//   }
-//   if (flags & DG_FACEFORWARD) {
-//     if (dot(ray.dir,Ng) >= 0.f) Ng = neg(Ng);
-//     if (dot(ray.dir,Ns) >= 0.f) Ns = neg(Ns);
-//   }
+//   dg.Ng = dg.Ns = ray.Ng;
 
 //   if (flags & DG_COLOR) {
 //     // compute base pointer to actual sphere we are intersecting
@@ -174,9 +147,6 @@ static void AlphaSpheres_postIntersect(uniform Geometry *uniform geometry,
 //       dg.color = make_vec4f(color.x,color.y,color.z,alpha);
 //     }
 //   }
-
-//   dg.Ng = Ng;
-//   dg.Ns = Ns;
 // }
 
 void AlphaSpheres_bounds(uniform AlphaSpheres *uniform geometry,
