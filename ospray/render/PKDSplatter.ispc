@@ -613,7 +613,7 @@ export void *uniform PKDSplatter_create(void *uniform cppE)
 {                                                                     
   uniform PKDSplatter *uniform self                           
     = uniform new uniform PKDSplatter;                            
-  Renderer_constructor(&self->inherited,cppE,NULL,NULL);          
+  Renderer_Constructor(&self->inherited,cppE);          
   self->inherited.renderSample = PKDSplatter_renderSample;                            
   return self;                                                  
 }                                                                     
