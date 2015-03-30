@@ -617,9 +617,3 @@ export void *uniform PKDSplatter_create(void *uniform cppE)
   self->inherited.renderSample = PKDSplatter_renderSample;                            
   return self;                                                  
 }                                                                     
-
-export void PKDSplatter_destroy(void *uniform _renderer)
-{
-  uniform PKDSplatter *uniform renderer = (uniform PKDSplatter *uniform)_renderer;
-  delete renderer;
-}
