@@ -18,6 +18,7 @@ CONFIGURE_OSPRAY()
 
 # mini-scene graph viewer for _geometry_ (intentionally simple)
 OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
+OPTION(OSPRAY_MODULE_PKD_ISPV "Build PKD-module in-situ particle vis service" OFF)
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
@@ -51,6 +52,25 @@ IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
     apps/ImportXYZ.cpp
     apps/ImportCosmicWeb.cpp
     )
-  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX}  ospray_xml${OSPRAY_LIB_SUFFIX})
+  TARGET_LINK_LIBRARIES(ospPartiKD ospray_xml${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------
+
+  IF (OSPRAY_MODULE_PKD_ISPV)
+    INCLUDE(${PROJECT_SOURCE_DIR}/cmake/mpi.cmake)
+    CONFIGURE_MPI()
+
+    # ------------------------------------------------------------
+    INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/ispv/include)
+    ADD_LIBRARY(ospray_ispv${OSPRAY_LIB_SUFFIX}
+      ispv/ISPV.cpp
+      )
+    # ------------------------------------------------------------
+    
+    # ------------------------------------------------------------
+    ADD_EXECUTABLE(ospTestISPV
+      apps/testISPV.cpp
+      )
+    TARGET_LINK_LIBRARIES(ospTestISPV ospray_ispv${OSPRAY_LIB_SUFFIX})
+    # ------------------------------------------------------------
+  ENDIF()
 ENDIF()

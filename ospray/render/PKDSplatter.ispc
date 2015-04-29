@@ -20,7 +20,6 @@
 #include "ospray/common/Model.ih"
 #include "ospray/render/util.ih"
 #include "ospray/render/Renderer.ih"
-#include "ospray/common/Box.ih"
 // this module
 #include "../PKDGeometry.ih"
 
@@ -608,7 +607,7 @@ export void *uniform PKDSplatter_create(void *uniform cppE)
 {                                                                     
   uniform PKDSplatter *uniform self                           
     = uniform new uniform PKDSplatter;                            
-  Renderer_constructor(&self->inherited,cppE,NULL,NULL);          
+  Renderer_Constructor(&self->inherited,cppE,NULL,NULL,1);          
   self->inherited.renderSample = PKDSplatter_renderSample;                            
   return self;                                                  
 }                                                                     

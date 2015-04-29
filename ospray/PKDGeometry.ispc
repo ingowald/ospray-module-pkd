@@ -16,10 +16,10 @@
 
 // ospray
 #include "ospray/math/vec.ih"
-#include "ospray/math/bbox.ih"
+#include "ospray/math/box.ih"
 #include "ospray/common/Ray.ih"
-#include "ospray/geometry/Geometry.ih"
 #include "ospray/common/Model.ih"
+#include "ospray/geometry/Geometry.ih"
 #include "ospray/transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"

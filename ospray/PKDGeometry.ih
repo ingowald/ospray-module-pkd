@@ -16,10 +16,10 @@
 
 // ospray
 #include "ospray/math/vec.ih"
-#include "ospray/math/bbox.ih"
+#include "ospray/math/box.ih"
 #include "ospray/common/Ray.ih"
-#include "ospray/geometry/Geometry.ih"
 #include "ospray/common/Model.ih"
+#include "ospray/geometry/Geometry.ih"
 #include "ospray/transferFunction/LinearTransferFunction.ih"
 
 #define USE_NAIVE_SPMD_TRAVERSAL 0
