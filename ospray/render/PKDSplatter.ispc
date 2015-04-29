@@ -23,8 +23,8 @@
 // this module
 #include "../PKDGeometry.ih"
 
-// if enabled, we're doing some LOD on the tree traversal ...
-// #define LOD 1
+// if enabled, we're doing some LOD on the tree traversal ... doesn't properly work, yet!
+//#define LOD 1
 
 
 struct PKDSplatter
@@ -272,10 +272,11 @@ inline uniform vec3f make_vec3f(uniform float f[3]) { return make_vec3f(f[0],f[1
 inline bool boxtest(uniform BOX3f &box,
                     Ray& ray,
                     float& t0,
-                    float& t1)
+                    float& t1,
+                    float radius)
 {
-  vec3f mins = mul(sub(make_vec3f(box.lower), ray.org), rcp(ray.dir));
-  vec3f maxs = mul(sub(make_vec3f(box.upper), ray.org), rcp(ray.dir));
+  vec3f mins = mul(sub(make_vec3f(box.lower)-make_vec3f(radius), ray.org), rcp(ray.dir));
+  vec3f maxs = mul(sub(make_vec3f(box.upper)+make_vec3f(radius), ray.org), rcp(ray.dir));
   
   t0 = max(max(ray.t0, 
                min(mins.x,maxs.x)),
@@ -296,7 +297,7 @@ inline void pkd_splat_LOD(uniform PKDSplatter *uniform self,
                           varying float &sample)
 {
   // factor for chosing whether to replace a subtree with a LOD-representation
-  const float lodFactor = .001f;
+  const float lodFactor = .000001f;
   sample = 0.f;
 
   const float radius = self->radius;
@@ -325,10 +326,13 @@ inline void pkd_splat_LOD(uniform PKDSplatter *uniform self,
 
   while (stackPtr > 0) {
     --stackPtr;
-    bounds = nodeStack[stackPtr].bounds;
     nodeID = nodeStack[stackPtr].nodeID;
+    if (nodeID >= numParticles)
+      continue;
+
+    bounds = nodeStack[stackPtr].bounds;
     float t0, t1;
-    if (!boxtest(bounds,ray,t0,t1)) 
+    if (!boxtest(bounds,ray,t0,t1,radius)) 
       continue;
 
     const uniform float width = min(min(bounds.upper[0]-bounds.lower[0],
@@ -611,9 +615,3 @@ export void *uniform PKDSplatter_create(void *uniform cppE)
   self->inherited.renderSample = PKDSplatter_renderSample;                            
   return self;                                                  
 }                                                                     
-
-export void PKDSplatter_destroy(void *uniform _renderer)
-{
-  uniform PKDSplatter *uniform renderer = (uniform PKDSplatter *uniform)_renderer;
-  delete renderer;
-}

@@ -28,8 +28,6 @@
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
 
-#include "ospray/common/Box.ih"
-
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,
                                           varying DifferentialGeometry &dg,
@@ -37,22 +35,8 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform int64 flags)
 {
   uniform PartiKDGeometry *uniform THIS = (uniform PartiKDGeometry *uniform)geometry;
-  dg.geometry = geometry;
-  dg.material = geometry->material;
 
-  dg.P = ray.org + ray.t * ray.dir;
-
-  vec3f Ng = ray.Ng;
-  vec3f Ns = Ng;
-
-  if (flags & DG_NORMALIZE) {
-    Ng = normalize(Ng);
-    Ns = normalize(Ns);
-  }
-  if (flags & DG_FACEFORWARD) {
-    if (dot(ray.dir,Ng) >= 0.f) Ng = neg(Ng);
-    if (dot(ray.dir,Ns) >= 0.f) Ns = neg(Ns);
-  }
+  dg.Ng = dg.Ns = ray.Ng;
 
   if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
 #if 1
@@ -108,8 +92,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     }
 #endif
   }
-  dg.Ng = Ng;
-  dg.Ns = Ns;
 }
 
 void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,

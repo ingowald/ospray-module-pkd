@@ -53,8 +53,8 @@ namespace ospray {
       model = (Model *)getParamObject("world",NULL);
       model = (Model *)getParamObject("model",model);
       camera = (Camera *)getParamObject("camera",NULL);
-      splatWeight = getParamf("weight",.01f);
-      splatRadius = getParamf("radius",.2f);
+      splatWeight = getParamf("weight",.0001f);
+      splatRadius = getParamf("radius",1.f);
 
       if (!model) return;
       assert(model->geometry.size() == 1);

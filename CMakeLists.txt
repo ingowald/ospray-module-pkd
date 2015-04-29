@@ -24,53 +24,36 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
-# ------------------------------------------------------------
-OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
-  ospray/PKDGeometry.cpp
-  ospray/PKDGeometry.ispc
-  ospray/MinMaxBVH2.cpp
-  ospray/MinMaxBVH2.ispc
-  ospray/AlphaSpheres.cpp
-  ospray/AlphaSpheres.ispc
-  ospray/TraversePacket.ispc
-  ospray/TraverseSPMD.ispc
-
-  ospray/render/PKDSplatter.ispc
-  ospray/render/PKDSplatter.cpp
-  )
-TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
-# ------------------------------------------------------------
-
-IF (OSPRAY_MODULE_PARTIKD AND NOT THIS_IS_MIC)
+IF (OSPRAY_MODULE_PARTIKD)
   # ------------------------------------------------------------
-  ADD_EXECUTABLE(ospPartiKD
-    apps/PartiKD.cpp
-    apps/ParticleModel.cpp
-    #importers
-    apps/ImportUIntah.cpp
-    apps/ImportCOSMOS.cpp
-    apps/ImportXYZ.cpp
-    apps/ImportCosmicWeb.cpp
+  OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
+    ospray/PKDGeometry.cpp
+    ospray/PKDGeometry.ispc
+    ospray/MinMaxBVH2.cpp
+    ospray/MinMaxBVH2.ispc
+    ospray/AlphaSpheres.cpp
+    ospray/AlphaSpheres.ispc
+    ospray/TraversePacket.ispc
+    ospray/TraverseSPMD.ispc
+
+    ospray/render/PKDSplatter.ispc
+    ospray/render/PKDSplatter.cpp
     )
-  TARGET_LINK_LIBRARIES(ospPartiKD ospray_xml${OSPRAY_LIB_SUFFIX})
+  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
   # ------------------------------------------------------------
 
-  IF (OSPRAY_MODULE_PKD_ISPV)
-    INCLUDE(${PROJECT_SOURCE_DIR}/cmake/mpi.cmake)
-    CONFIGURE_MPI()
-
+  IF (NOT THIS_IS_MIC)
     # ------------------------------------------------------------
-    INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/ispv/include)
-    ADD_LIBRARY(ospray_ispv${OSPRAY_LIB_SUFFIX}
-      ispv/ISPV.cpp
+    ADD_EXECUTABLE(ospPartiKD
+      apps/PartiKD.cpp
+      apps/ParticleModel.cpp
+      #importers
+      apps/ImportUIntah.cpp
+      apps/ImportCOSMOS.cpp
+      apps/ImportXYZ.cpp
+      apps/ImportCosmicWeb.cpp
       )
-    # ------------------------------------------------------------
-    
-    # ------------------------------------------------------------
-    ADD_EXECUTABLE(ospTestISPV
-      apps/testISPV.cpp
-      )
-    TARGET_LINK_LIBRARIES(ospTestISPV ospray_ispv${OSPRAY_LIB_SUFFIX})
+    TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX}  ospray_xml${OSPRAY_LIB_SUFFIX})
     # ------------------------------------------------------------
   ENDIF()
 ENDIF()
