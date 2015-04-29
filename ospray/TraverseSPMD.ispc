@@ -16,7 +16,7 @@
 
 // ospray
 #include "ospray/math/vec.ih"
-#include "ospray/math/bbox.ih"
+#include "ospray/math/box.ih"
 #include "ospray/common/Ray.ih"
 #include "ospray/geometry/Geometry.ih"
 #include "ospray/common/Model.ih"
@@ -27,8 +27,6 @@
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
-
-#include "ospray/common/Box.ih"
 
 #define modify_radius(t) 4.f
 
