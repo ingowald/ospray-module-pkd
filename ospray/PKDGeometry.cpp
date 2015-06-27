@@ -130,6 +130,8 @@ namespace ospray {
         { attr_lo = std::min(attr_lo,attribute[i]); attr_hi = std::max(attr_hi,attribute[i]); }
 
       binBitsArray = new uint32[numInnerNodes];
+      size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
+      cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << endl;
       for (long long pID=numInnerNodes-1;pID>=0;--pID) {
         size_t lID = 2*pID+1;
         size_t rID = lID+1;
