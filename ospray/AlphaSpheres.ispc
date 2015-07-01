@@ -151,8 +151,8 @@ void AlphaSpheres_bounds(uniform AlphaSpheres *uniform geometry,
                          uniform size_t primID,
                          uniform box3fa &bbox)
 {
-  bbox.lower = geometry->mmBVH.node[0].bounds_lo;
-  bbox.upper = geometry->mmBVH.node[0].bounds_hi;
+  bbox = make_box3fa(geometry->mmBVH.node[0].bounds_lo,
+                     geometry->mmBVH.node[0].bounds_hi);
 }
 
 // void PKDGeometry_bounds(uniform PKDGeometry *uniform geometry,
