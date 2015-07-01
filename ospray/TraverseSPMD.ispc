@@ -103,14 +103,14 @@ inline varying bool PartiKDGeometry_intersectPrim(void *uniform geomPtr,
 }
 
 inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
-                                   varying Ray &ray,
-                                   const varying float rdir[3], 
-                                   const varying float org[3],
-                                   const varying float t_in_0, 
-                                   const varying float t_out_0,
-                                   const varying size_t dir_sign[3],
-                                   const uniform bool isShadowRay
-                                   )
+                              varying Ray &ray,
+                              const varying float rdir[3], 
+                              const varying float org[3],
+                              const varying float t_in_0, 
+                              const varying float t_out_0,
+                              const varying size_t dir_sign[3],
+                              const uniform bool isShadowRay
+                              )
 {
   varying ThreePhaseStackEntry stack[32];
   varying ThreePhaseStackEntry *varying stackPtr = stack;
@@ -239,9 +239,9 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
 }
 
 /*! generic traverse/occluded function that splits the packet into
-    subpackets of equal sige, and then calls the appropiate
-    constant-sign traverse function. this method works for both shadow
-    and primary rays, as indicated by the 'isShadowRay' flag */
+  subpackets of equal sige, and then calls the appropiate
+  constant-sign traverse function. this method works for both shadow
+  and primary rays, as indicated by the 'isShadowRay' flag */
 inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
                               varying Ray &ray,
                               uniform size_t primID,
@@ -274,14 +274,14 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
 
 /*! the 'virtual' traverse function for a pkd geometry */
 void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform self,
-                                      varying Ray &ray,
-                                      uniform size_t primID)
+                                    varying Ray &ray,
+                                    uniform size_t primID)
 { pkd_traverse_spmd(self,ray,primID,false); }
 
 /*! the 'virtual' occluded function for a pkd geometry */
 void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform self,
-                                     varying Ray &ray,
-                                     uniform size_t primID)
+                                   varying Ray &ray,
+                                   uniform size_t primID)
 { pkd_traverse_spmd(self,ray,primID,true); }
 
 
