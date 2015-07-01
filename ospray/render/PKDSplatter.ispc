@@ -269,7 +269,7 @@ struct LODStackEntry {
 inline vec3f make_vec3f(float f[3]) { return make_vec3f(f[0],f[1],f[2]); }
 inline uniform vec3f make_vec3f(uniform float f[3]) { return make_vec3f(f[0],f[1],f[2]); }
 
-inline bool boxtest(uniform BOX3f &box,
+inline bool intersectBox(uniform BOX3f &box,
                     Ray& ray,
                     float& t0,
                     float& t1,
@@ -332,7 +332,7 @@ inline void pkd_splat_LOD(uniform PKDSplatter *uniform self,
 
     bounds = nodeStack[stackPtr].bounds;
     float t0, t1;
-    if (!boxtest(bounds,ray,t0,t1,radius)) 
+    if (!intersectBox(bounds,ray,t0,t1,radius)) 
       continue;
 
     const uniform float width = min(min(bounds.upper[0]-bounds.lower[0],
@@ -385,7 +385,7 @@ inline void pkd_splat_packet(uniform PKDSplatter *uniform self,
                              varying float &sample)
 {
   float t_in = ray.t0, t_out = ray.t;
-  boxtest(ray,self->pkd->sphereBounds,t_in,t_out);
+  intersectBox(ray,self->pkd->sphereBounds,t_in,t_out);
 
   if (t_out < t_in)
     return;
@@ -459,119 +459,6 @@ void PKD_splatParticles(uniform PKDSplatter *uniform self,
 #else
   pkd_splat_packet(self,ray,sample);
 #endif
-
-// //   float t0 = ray.t0, t1 = ray.t;
-// //   uniform PartiKDGeometry *uniform pkd = self->pkd;
-// //   boxtest(ray,pkd->sphereBounds,t0,t1);
-
-// //   if (t1 < t0)
-// //     return;
-
-// //   uniform uint64 nodeID = 0;
-// //   uniform SplatStackEntry stackBase[64];
-// //   uniform SplatStackEntry *uniform stackPtr = stackBase;
-// //   const uniform float radius = self->radius;
-// //   const uniform float weight = self->weight;
-// //   const uniform uint64 numInnerNodes = pkd->numInnerNodes;
-// //   const uniform uint64 numParticles  = pkd->numParticles;
-// //   // const uniform uint64 *uniform const particle = self->particle;
-
-// //   const varying float rdir[3] = { 
-// //     safe_rcp(ray.dir.x),
-// //     safe_rcp(ray.dir.y),
-// //     safe_rcp(ray.dir.z) 
-// //   };
-// //   const varying float org[3]  = { 
-// //     ray.org.x, 
-// //     ray.org.y, 
-// //     ray.org.z 
-// //   };
-// //   const vec3f nDir = normalize(ray.dir);
-
-// //   while (1)  {
-// //     while (1) {
-// //       // uniform uint32 pBits = particle[nodeID];
-// //       uniform Particle p;
-// //       getParticle(self->pkd,p,nodeID);
-// //       splatParticle(make_vec3f(p.pos[0],p.pos[1],p.pos[2]),
-// //                     radius,weight,nDir,ray,sample);
-// //       if (sample >= 1.f) return;
-      
-// //       if (nodeID >= numInnerNodes) 
-// //         break;
-
-// //       const float org_to_node_dim = p.pos[p.dim] - org[p.dim];
-// //       const float t_plane_0  = (org_to_node_dim - radius) * rdir[p.dim];
-// //       const float t_plane_1  = (org_to_node_dim + radius) * rdir[p.dim];
-      
-// //       float t0l = t0;
-// //       float t1l = t1;
-// //       float t0r = t0;
-// //       float t1r = t1;
-// //       if (rdir[p.dim] < 0.f) {
-// //         t0l = max(t0l,t_plane_1);
-// //         t1r = min(t1r,t_plane_0);
-// //       } else {
-// //         t0r = max(t0r,t_plane_0);
-// //         t1l = min(t1l,t_plane_1);
-// //       }
-// //       uniform bool any_l = any(t0l < t1l);
-// //       uniform bool any_r = any(t0r < t1r);
-// //       uniform uint64 node_l = 2*nodeID+1;
-// //       uniform uint64 node_r = node_l+1;
-
-// //       if (any_l) {
-// //         if (any_r) {
-// //           if (any((t0l < t1l) & (t0r < t1r) & (rdir[p.dim] < 0))) {
-// //             unmasked {
-// //               stackPtr->t0 = t0l;
-// //               stackPtr->t1 = t1l;
-// //             }
-// //             stackPtr->nodeID = node_l;
-// //             ++stackPtr;
-// //             nodeID = node_r;
-// //             t0 = t0r;
-// //             t1 = t1r;
-// //           } else {
-// //             unmasked {
-// //               stackPtr->t0 = t0r;
-// //               stackPtr->t1 = t1r;
-// //             }
-// //             stackPtr->nodeID = node_r;
-// //             ++stackPtr;
-// //             nodeID = node_l;
-// //             t0 = t0l;
-// //             t1 = t1l;
-// //           }
-// //         } else {
-// //           nodeID = node_l;
-// //           t0 = t0l;
-// //           t1 = t1l;
-// //         }
-// //       } else {
-// //         if (any_r) {
-// //           nodeID = node_r;
-// //           t0 = t0r;
-// //           t1 = t1r;
-// //         } else {
-// //           break;
-// //         }
-// //       }
-// //     }
-// //     // pop
-// //     while (1) {
-// //       --stackPtr;
-// //       if (stackPtr <= stackBase) return;
-// //       unmasked {
-// //         t0 = stackPtr->t0;
-// //         t1 = stackPtr->t1;
-// //       }
-// //       nodeID = stackPtr->nodeID;
-// //       if (none(t0 < t1)) continue;
-// //       break;
-// //     }
-// //   }
-// #endif
 }
 
 void PKDSplatter_renderSample(uniform Renderer *uniform _renderer,

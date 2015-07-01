@@ -248,7 +248,7 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
                               uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
-  boxtest(ray,self->sphereBounds,t_in,t_out);
+  intersectBox(ray,self->sphereBounds,t_in,t_out);
 
   if (t_out < t_in)
     return;
