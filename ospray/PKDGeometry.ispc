@@ -98,8 +98,7 @@ void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
                             uniform size_t primID,
                             uniform box3fa &bbox)
 {
-  bbox.lower = geometry->sphereBounds.lower;
-  bbox.upper = geometry->sphereBounds.upper;
+  bbox = make_box3fa(geometry->sphereBounds.lower,geometry->sphereBounds.upper);
 }
 
 
