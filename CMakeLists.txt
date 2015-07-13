@@ -43,17 +43,17 @@ IF (OSPRAY_MODULE_PARTIKD)
   # ------------------------------------------------------------
 
   IF (NOT THIS_IS_MIC)
-    # ------------------------------------------------------------
-    ADD_EXECUTABLE(ospPartiKD
-      apps/PartiKD.cpp
-      apps/ParticleModel.cpp
-      #importers
-      apps/ImportUIntah.cpp
-      apps/ImportCOSMOS.cpp
-      apps/ImportXYZ.cpp
-      apps/ImportCosmicWeb.cpp
-      )
-    TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX}  ospray_xml${OSPRAY_LIB_SUFFIX})
-    # ------------------------------------------------------------
+    # the scene graph plugin
+    ADD_SUBDIRECTORY(sg)
+    
+    # helper apps (converters, builders,...)
+    ADD_SUBDIRECTORY(apps)
   ENDIF()
+
+#  CONFIGURE_MPI()
+#  ADD_EXECUTABLE(ospDPKDservice
+#    dPKD/service.cpp
+#    )
+#  TARGET_LINK_LIBRARIES(ospDPKDservice ospray_xml${OSPRAY_LIB_SUFFIX})
+
 ENDIF()
