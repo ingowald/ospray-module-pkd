@@ -65,8 +65,7 @@ namespace ospray {
 
       vec3f getParticle(size_t i) const;
 
-      
-    protected:
+    // protected:
       struct Attribute {
         std::string name;
         float      *value;

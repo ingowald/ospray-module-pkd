@@ -215,12 +215,7 @@ namespace ospray {
             particle1ul = (uint64*)(binBasePtr+child->getPropl("ofs"));
             this->format = OSP_ULONG;
           }
-          PING;
           particleBounds = getBounds();
-          PING;
-// embree::empty;
-//           for (size_t i=0;i<numParticles;i++)
-//             particleBounds.extend(getParticle(i));
           std::cout << "#osp:sg:PKDGeometry: found " << numParticles
                     << " particles, bounds=" << particleBounds << std::endl;
           continue;
