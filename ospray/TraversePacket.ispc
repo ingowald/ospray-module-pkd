@@ -98,6 +98,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
   // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
   if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
+	  /*
     // -------------------------------------------------------
     // do attribute test
     uniform float attrib = self->attribute[primID];
@@ -114,6 +115,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
       = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
     if (alpha <= .5f)
       return false;
+	  */
   }
 
   // if (dbg) print("ISEC3\n");

@@ -27,6 +27,7 @@
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
+#include "ColorMask.h"
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,
@@ -38,7 +39,21 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 
   dg.Ng = dg.Ns = ray.Ng;
 
-  if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
+  if ((flags & DG_COLOR) && (THIS->attribute != NULL)){
+    uniform int *uniform attribArray = (uniform int *uniform)THIS->attribute;
+
+    int attrib;
+    uint64 primID64 = (uint32)ray.primID_hi64;
+    primID64 <<= 32;
+    primID64 += (uint32)ray.primID;
+    foreach_unique(pID in primID64) {
+      uniform int *uniform ptr = attribArray + pID;
+      attrib = ptr[0];
+    }
+	dg.color = make_vec4f(GET_RED(attrib) / 255.0, GET_GREEN(attrib) / 255.0,
+			GET_BLUE(attrib) / 255.0, 1.0);
+/*
+&& (THIS->transferFunction != NULL)) {
 #if 1
     uniform float *uniform attribArray = THIS->attribute;
     const uniform float attrib_lo = THIS->attr_lo;
@@ -91,6 +106,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
       dg.color = make_vec4f(color.x,color.y,color.z,alpha);
     }
 #endif
+*/
   }
 }
 

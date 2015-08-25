@@ -532,7 +532,7 @@ int main(int ac, char **av)
   } catch (std::runtime_error(e)) {
     cout << "#osp:pkd (fatal): " << e.what() << endl;
     cout << "usage:" << endl;
-    cout << "./ospPartiKD <inputfile(s)> -o output.pkd [--round-robin] [--quantize quantized.pkd]\n" << endl;
+    cout << "./ospPartiKD <inputfile(s)> -o output.pkd --radius <radius> [--round-robin] [--quantize quantized.pkd]\n" << endl;
     
   }
 }

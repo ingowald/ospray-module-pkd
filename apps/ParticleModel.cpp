@@ -23,6 +23,7 @@ namespace ospray {
   namespace xyz { void importModel(ParticleModel *model, const embree::FileName &s); }
   namespace cosmos { void importModel(ParticleModel *model, const embree::FileName &s); }
   namespace cosmic_web { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace las { void importModel(ParticleModel *model, const embree::FileName &s); }
 
   /*! helper function that creates a pseudo-random color for a given
       ID; this is used to generate initial colors for atom types, if
@@ -73,7 +74,9 @@ namespace ospray {
     } else if (fn.ext() == "cosmos") {
       // assume uintah format
       cosmos::importModel(this,fn);
-    } else {
+    } else if (fn.ext() == "las" || fn.ext() == "laz"){
+	  las::importModel(this, fn);
+	} else {
       throw std::runtime_error("unknonw file format '"+fn.str()+"'");
     }
   }
