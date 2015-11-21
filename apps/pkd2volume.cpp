@@ -16,6 +16,8 @@
 
 #include "../sg/PKD.h"
 #include "sg/SceneGraph.h"
+// c++11
+#include <mutex>
 
 namespace ospray {
   using std::endl;
@@ -53,7 +55,7 @@ namespace ospray {
     
     void writeBlock(Block &block)
     {
-      mutex.lock();
+      std::lock_guard<std::mutex> lock(mutex);
       for (size_t z=0;z<block.dims.z;z++)
         for (size_t y=0;y<block.dims.y;y++) {
           size_t dx = block.dims.x;
@@ -67,10 +69,9 @@ namespace ospray {
           if (written != dx) 
             throw std::runtime_error("error writing block data");
         }
-      mutex.unlock();
     }
 
-    embree::MutexSys mutex;
+    std::mutex mutex;
     FILE *file;
     vec3i dims;
   };
