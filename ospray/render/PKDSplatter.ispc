@@ -462,7 +462,8 @@ void PKD_splatParticles(uniform PKDSplatter *uniform self,
 }
 
 void PKDSplatter_renderSample(uniform Renderer *uniform _renderer,
-                                   varying ScreenSample &sample)
+                              void *uniform perFrameData,
+                              varying ScreenSample &sample)
 {
   uniform PKDSplatter *uniform self = (uniform PKDSplatter *uniform)_renderer;
   

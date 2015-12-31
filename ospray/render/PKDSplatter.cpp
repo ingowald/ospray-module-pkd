@@ -19,8 +19,6 @@
 // ospray
 #include "ospray/render/Renderer.h"
 #include "ospray/camera/PerspectiveCamera.h"
-// embree
-#include "common/sys/sync/atomic.h"
 // ispc exports
 #include "PKDSplatter_ispc.h"
 // this module
