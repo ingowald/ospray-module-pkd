@@ -20,18 +20,34 @@ namespace ospray {
 				<< " with " << header.GetPointRecordsCount()
 				<< " points\n";
 			//Offsets we need to apply to position the points properly
-			const vec3f scale = vec3f(header.GetScaleX(), header.GetScaleY(), header.GetScaleZ());
+			const vec3f scale = vec3f(header.GetScaleX(), header.GetScaleY(), header.GetScaleZ()) * vec3f(5e-4);
 			const vec3f offset = vec3f(header.GetOffsetX(), header.GetOffsetY(), header.GetOffsetZ());
 			std::cout << "scale: " << scale << ", offset: " << offset << std::endl;
+			
+			bool has_color = header.GetDataFormatId() == liblas::ePointFormat2
+				|| header.GetDataFormatId() == liblas::ePointFormat3
+				|| header.GetDataFormatId() == liblas::ePointFormat5;
 
+			int n_discarded = 0;
 			const float inv_max_color = 1.f / 65536.f;
-			//Unfortunately the libLAS designers prefer Java style iterators
+			// Unfortunately the libLAS designers prefer Java style iterators
 			while (reader.ReadNextPoint()){
 				const liblas::Point &lasp = reader.GetPoint();
+				// Points classified as low point are noise and should be discarded
+				if (lasp.GetClassification().GetClass() == liblas::Point::eLowPoint){
+					++n_discarded;
+					continue;
+				}
 				const liblas::Color lasc = lasp.GetColor();
 				const vec3f p = vec3f(lasp.GetX(), lasp.GetY(), lasp.GetZ()) * scale + offset;
-				const vec3f c = vec3f(lasc.GetRed() * inv_max_color, lasc.GetGreen() * inv_max_color,
+				vec3f c;
+				if (has_color){
+					c = vec3f(lasc.GetRed() * inv_max_color, lasc.GetGreen() * inv_max_color,
 						lasc.GetBlue() * inv_max_color);
+				}
+				else {
+					c = vec3f(1.0);
+				}
 				uint32_t col_masked = 0;
 				SET_RED(col_masked, static_cast<int>(c.x * 255));
 				SET_GREEN(col_masked, static_cast<int>(c.y * 255));
@@ -39,6 +55,7 @@ namespace ospray {
 				model->position.push_back(p);
 				model->addAttribute("color", *reinterpret_cast<float*>(&col_masked));
 			}
+			std::cout << "Discarded " << n_discarded << " noise classified points\n";
 		}
 	}
 }
