@@ -48,6 +48,10 @@ namespace ospray {
 			LASreadOpener read_opener;
 			read_opener.set_file_name(fileName.c_str());
 			LASreader *reader = read_opener.open();
+			if (!reader){
+				std::cout << "ImportLAS Error: Failed to open: " << fileName << ", skipping\n";
+				return;
+			}
 
 			bool has_color = reader->header.point_data_format == 2
 				|| reader->header.point_data_format == 3
@@ -96,6 +100,8 @@ namespace ospray {
 				model->addAttribute("color", *reinterpret_cast<float*>(&col_masked));
 			}
 			std::cout << "Discarded " << num_noise << " noise classified points\n";
+			reader->close();
+			delete reader;
 		}
 	}
 }
