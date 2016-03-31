@@ -15,6 +15,7 @@
 // ======================================================================== //
 
 #include "PartiKD.h"
+#include "PKDConfig.h"
 
 #define CHECK 1
 
@@ -503,44 +504,46 @@ namespace ospray {
     if (model.radius == 0.f) {
       throw std::runtime_error("no radius specified via either command line or model file");
     }
-	// WILL: lidar hack to re-scale data sets to not have so much precision issues with shadows/ao
-	// We can't compare the box against embree::empty?
-	if (input[0].ext() == "las" || input[0].ext() == "laz"){
-		std::cout << "lidar data bounds: " << model.lidar_current_bounds << "\n";
-		vec3f diag = model.lidar_current_bounds.upper - model.lidar_current_bounds.lower;
-		vec3f axis_scale(1, 1, 1);
-		// Find the largest axis and re-scale it into some smaller range, [-100, 100]
-		int largest_axis = 0;
-		if (diag.y > diag.x){
-			if (diag.z > diag.y){
-				largest_axis = 2;
-				axis_scale.x = diag.x / diag.z;
-				axis_scale.y = diag.y / diag.z;
-			} else {
-				largest_axis = 1;
-				axis_scale.x = diag.x / diag.y;
-				axis_scale.z = diag.z / diag.y;
-			}
-		} else {
-			if (diag.z > diag.x){
-				largest_axis = 2;
-				axis_scale.x = diag.x / diag.z;
-				axis_scale.y = diag.y / diag.z;
-			} else {
-				largest_axis = 0;
-				axis_scale.y = diag.y / diag.x;
-				axis_scale.z = diag.z / diag.x;
-			}
-		}
-		vec3f new_min = vec3f(-100) * axis_scale;
-		vec3f new_max = vec3f(100) * axis_scale;
-		std::cout << "axis_scale " << axis_scale << ", new_min = " << new_min
-			<< ", new_max = " << new_max << "\n";
-		for (size_t i = 0; i < model.position.size(); ++i){
-			model.position[i] = ((new_max - new_min) * (model.position[i] - model.lidar_current_bounds.lower))
-					/ diag + new_min;
-		}
-	}
+#if PARTIKD_LIDAR_ENABLED
+    // WILL: lidar hack to re-scale data sets to not have so much precision issues with shadows/ao
+    // We can't compare the box against embree::empty?
+    if (input[0].ext() == "las" || input[0].ext() == "laz"){
+      std::cout << "lidar data bounds: " << model.lidar_current_bounds << "\n";
+      vec3f diag = model.lidar_current_bounds.upper - model.lidar_current_bounds.lower;
+      vec3f axis_scale(1, 1, 1);
+      // Find the largest axis and re-scale it into some smaller range, [-100, 100]
+      int largest_axis = 0;
+      if (diag.y > diag.x){
+        if (diag.z > diag.y){
+            largest_axis = 2;
+            axis_scale.x = diag.x / diag.z;
+            axis_scale.y = diag.y / diag.z;
+        } else {
+            largest_axis = 1;
+            axis_scale.x = diag.x / diag.y;
+            axis_scale.z = diag.z / diag.y;
+        }
+      } else {
+        if (diag.z > diag.x){
+            largest_axis = 2;
+            axis_scale.x = diag.x / diag.z;
+            axis_scale.y = diag.y / diag.z;
+        } else {
+            largest_axis = 0;
+            axis_scale.y = diag.y / diag.x;
+            axis_scale.z = diag.z / diag.x;
+        }
+      }
+      vec3f new_min = vec3f(-100) * axis_scale;
+      vec3f new_max = vec3f(100) * axis_scale;
+      std::cout << "axis_scale " << axis_scale << ", new_min = " << new_min
+          << ", new_max = " << new_max << "\n";
+      for (size_t i = 0; i < model.position.size(); ++i){
+        model.position[i] = ((new_max - new_min) * (model.position[i] - model.lidar_current_bounds.lower))
+            / diag + new_min;
+      }
+    }
+#endif
 
     double before = getSysTime();
     std::cout << "#osp:pkd: building tree ..." << std::endl;

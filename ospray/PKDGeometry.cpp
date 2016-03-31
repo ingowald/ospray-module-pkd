@@ -15,6 +15,7 @@
 // ======================================================================== //
 
 #include "PKDGeometry.h"
+#include "PKDConfig.h"
 // ospray
 #include "ospray/common/Model.h"
 // ispc exports
@@ -123,7 +124,9 @@ namespace ospray {
     float attr_lo = 0.f, attr_hi = 0.f;
     uint32 *binBitsArray = NULL;
     attribute = (float*)(attributeData?attributeData->data:NULL);
-	/*
+
+    // Attribute culling on the lidar type-punned RGB data doesn't make sense, so don't do it
+#if !PARTIKD_LIDAR_ENABLED
     if (attribute) {
       cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
       attr_lo = attr_hi = attribute[0];
@@ -150,7 +153,7 @@ namespace ospray {
       }
       cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
     }
-	*/
+#endif
 
 
     // -------------------------------------------------------

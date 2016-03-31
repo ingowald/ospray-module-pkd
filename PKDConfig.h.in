@@ -1,0 +1,4 @@
+#pragma once
+
+#define PARTIKD_LIDAR_ENABLED @PARTIKD_LIDAR_ENABLED@
+

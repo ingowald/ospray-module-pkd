@@ -17,14 +17,7 @@
 CONFIGURE_OSPRAY()
 # ------------------------------------------------------------
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-FIND_PACKAGE(LASTools REQUIRED)
-IF(NOT LASTOOLS_FOUND)
-	MESSAGE(FATAL_ERROR "Could not find LASTools (did you set $LASTOOLS if it's somewhere non-standard?)")
-ENDIF()
-INCLUDE_DIRECTORIES(${LASTOOLS_INCLUDE_DIRS})
-
-ADD_EXECUTABLE(ospPartiKD
+SET(APP_SRCS
   PartiKD.cpp
   ParticleModel.cpp
   #importers
@@ -32,10 +25,21 @@ ADD_EXECUTABLE(ospPartiKD
   ImportCOSMOS.cpp
   ImportXYZ.cpp
   ImportCosmicWeb.cpp
-  ImportLAS.cpp
-  )
+)
 
-SET(LIBS ${LIBS} ${LASTOOLS_LIBRARIES})
+IF (OSPRAY_MODULE_PARTIKD_LIDAR)
+  SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+  FIND_PACKAGE(LASTools REQUIRED)
+  IF(NOT LASTOOLS_FOUND)
+    MESSAGE(FATAL_ERROR "Could not find LASTools (did you set $LASTOOLS if it's somewhere non-standard?)")
+  ENDIF()
+  INCLUDE_DIRECTORIES(${LASTOOLS_INCLUDE_DIRS})
+  SET(LIBS ${LIBS} ${LASTOOLS_LIBRARIES})
+  SET(APP_SRCS ${APP_SRCS} ImportLAS.cpp)
+ENDIF()
+
+ADD_EXECUTABLE(ospPartiKD ${APP_SRCS})
+
 TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
 

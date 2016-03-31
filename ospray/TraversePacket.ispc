@@ -23,6 +23,7 @@
 #include "ospray/transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
+#include "PKDConfig.h"
 // embree
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
@@ -97,8 +98,8 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 
   // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
+#if !PARTIKD_LIDAR_ENABLED
   if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
-	  /*
     // -------------------------------------------------------
     // do attribute test
     uniform float attrib = self->attribute[primID];
@@ -115,8 +116,8 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
       = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
     if (alpha <= .5f)
       return false;
-	  */
   }
+#endif
 
   // if (dbg) print("ISEC3\n");
   // found a hit - store it

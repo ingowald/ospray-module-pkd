@@ -18,6 +18,7 @@ CONFIGURE_OSPRAY()
 
 # mini-scene graph viewer for _geometry_ (intentionally simple)
 OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
+OPTION(OSPRAY_MODULE_PARTIKD_LIDAR "Build Particle KD Tree Module for LiDAR (requires LAStools)." OFF)
 OPTION(OSPRAY_MODULE_PKD_ISPV "Build PKD-module in-situ particle vis service" OFF)
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ospray/include)
@@ -25,6 +26,14 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
 IF (OSPRAY_MODULE_PARTIKD)
+  IF (OSPRAY_MODULE_PARTIKD_LIDAR)
+	SET(PARTIKD_LIDAR_ENABLED 1)
+  ELSE()
+    SET(PARTIKD_LIDAR_ENABLED 0)
+  ENDIF()
+  CONFIGURE_FILE("PKDConfig.h.in" PKDConfig.h)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+  INCLUDE_DIRECTORIES_ISPC(${CMAKE_CURRENT_BINARY_DIR})
   # ------------------------------------------------------------
   OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
     ospray/PKDGeometry.cpp
