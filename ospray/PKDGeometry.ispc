@@ -23,10 +23,14 @@
 #include "ospray/transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
+#include "PKDConfig.h"
 // embree
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
+#if PARTIKD_LIDAR_ENABLED
+#include "ColorMask.h"
+#endif
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,
@@ -38,7 +42,23 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 
   dg.Ng = dg.Ns = ray.Ng;
 
-  if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
+#if PARTIKD_LIDAR_ENABLED
+  if ((flags & DG_COLOR) && (THIS->attribute != NULL)){
+    uniform int *uniform attribArray = (uniform int *uniform)THIS->attribute;
+
+    int attrib;
+    uint64 primID64 = (uint32)ray.primID_hi64;
+    primID64 <<= 32;
+    primID64 += (uint32)ray.primID;
+    foreach_unique(pID in primID64) {
+      uniform int *uniform ptr = attribArray + pID;
+      attrib = ptr[0];
+    }
+	  dg.color = make_vec4f(GET_RED(attrib) / 255.0, GET_GREEN(attrib) / 255.0,
+			GET_BLUE(attrib) / 255.0, 1.0);
+  }
+#else
+  if ((flags & DG_COLOR) && THIS->attribute != NULL && THIS->transferFunction != NULL) {
 #if 1
     uniform float *uniform attribArray = THIS->attribute;
     const uniform float attrib_lo = THIS->attr_lo;
@@ -92,6 +112,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     }
 #endif
   }
+#endif
 }
 
 void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,

@@ -22,6 +22,13 @@ Now, go into your ospray build directory, do a 'ccmake', enable the pkd module, 
 
 You should now have a properly built _libospray_module_pkd.so_, as well as a _ospPartiKD_ binary.
 
+## Building for LiDAR Data
+
+To build the PKD module for LiDAR data you'll need [LAStools](http://www.cs.unc.edu/~isenburg/lastools/) to read
+LAS and LAZ files, then can enable `OPTION_MODULE_PARTIKD_LIDAR` in CMake. If LAStools is installed in some
+non-standard location you can pass `-DLASTOOLS=<path to LAStools root>`. **Warning:** This will break support
+for any non-LiDAR data due to how the attributes are handled.
+
 # Using the PKD Module
 
 Once built, using the PKD module consists of two steps:
