@@ -46,9 +46,6 @@ TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
 # for scene graph includes
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
-ADD_EXECUTABLE(ospPkd2Raw 
-  pkd2volume.cpp
-  )
-TARGET_LINK_LIBRARIES(ospPkd2Raw ospray_sg_pkd${OSPRAY_LIB_SUFFIX}  
-  )
+#ADD_EXECUTABLE(ospPkd2Raw pkd2volume.cpp)
+#TARGET_LINK_LIBRARIES(ospPkd2Raw ospray_sg_pkd${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------

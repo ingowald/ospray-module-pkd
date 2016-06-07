@@ -19,8 +19,10 @@
 // ospray d
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
+#include "common/box.h"
 
 namespace ospray {
+  typedef box_t<float, 4> box4f;
 
   /*! defines a (binary) BVH with some float min/max value per
       node. The BVH itself does not specify the primitive type it is
@@ -57,4 +59,18 @@ namespace ospray {
     const box4f &getBounds() const { return node[0]; }
   };
 
+  inline size_t maxDim(const vec3f &v) {
+    const float maxVal = ospcommon::reduce_max(v);
+    if (maxVal == v.x) {
+      return 0;
+    } else if (maxVal == v.y) {
+      return 1;
+    } else if (maxVal == v.z) {
+      return 2;
+    } else {
+      assert(false && "Invalid max val index for vec!?");
+    }
+  }
+
 }
+

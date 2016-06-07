@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include "common/constants.h"
+
 namespace ospray {
   namespace sg {
 
@@ -53,7 +55,7 @@ namespace ospray {
     //! return bounding box of this node (in local space)
     box3f PKDGeometry::getBounds() 
     {
-      box3f bounds = embree::empty;
+      box3f bounds = ospcommon::EmptyTy();
       for (size_t i=0;i<numParticles;i++)
         bounds.extend(getParticle(i));
       bounds.lower -= vec3f(radius);
@@ -212,7 +214,7 @@ namespace ospray {
           } else {
             std::cout << "#osp:sg:PKDGeometry: found " << numParticles
                       << " QUANTIZED particles." << endl;
-            particle1ul = (uint64*)(binBasePtr+child->getPropl("ofs"));
+            particle1ul = (uint64_t*)(binBasePtr+child->getPropl("ofs"));
             this->format = OSP_ULONG;
           }
           particleBounds = getBounds();

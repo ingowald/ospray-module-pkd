@@ -16,6 +16,9 @@
 
 #include "PartiKD.h"
 #include "PKDConfig.h"
+#include "common/constants.h"
+#include "common/FileName.h"
+#include "ospray/MinMaxBVH2.h"
 
 #define CHECK 1
 
@@ -104,7 +107,7 @@ namespace ospray {
 #if DIM_ROUND_ROBIN
     const size_t dim = depth % 3;
 #else
-    const size_t dim = embree::maxDim(bounds.size());
+    const size_t dim = maxDim(bounds.size());
     // if (depth < 4) { PRINT(bounds); printf("depth %ld-> dim %ld\n",depth,dim); }
 #endif
     const size_t N = numParticles;
@@ -461,7 +464,7 @@ namespace ospray {
 
   void partiKDMain(int ac, char **av)
   {
-    std::vector<embree::FileName> input;
+    std::vector<ospcommon::FileName> input;
     std::string output, outputQuantized;
     ParticleModel model;
     bool roundRobin = false;

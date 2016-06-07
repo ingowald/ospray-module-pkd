@@ -81,7 +81,7 @@ namespace ospray {
       /*! array of particle positions, in kd-tree order */
       union {
         vec3f *particle3f; 
-        uint64 *particle1ul;
+        uint64_t *particle1ul;
       };
       OSPDataType format;
 

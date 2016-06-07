@@ -20,12 +20,12 @@
 namespace ospray {
 
   // file importers
-  namespace uintah { void importModel(ParticleModel *model, const embree::FileName &s); }
-  namespace xyz { void importModel(ParticleModel *model, const embree::FileName &s); }
-  namespace cosmos { void importModel(ParticleModel *model, const embree::FileName &s); }
-  namespace cosmic_web { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace uintah { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  namespace xyz { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  namespace cosmos { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  namespace cosmic_web { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
 #if PARTIKD_LIDAR_ENABLED
-  namespace las { void importModel(ParticleModel *model, const embree::FileName &s); }
+  namespace las { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
 #endif
 
   /*! helper function that creates a pseudo-random color for a given
@@ -45,7 +45,7 @@ namespace ospray {
   //! \brief load a model (using the built-in model importers for
   //! various file formats). throw an exception if this cannot be
   //! done
-  void ParticleModel::load(const embree::FileName &fn)
+  void ParticleModel::load(const ospcommon::FileName &fn)
   {
     if (fn.ext() == "RANDOM") {
       size_t num = atol(fn.str().c_str());
@@ -128,7 +128,7 @@ namespace ospray {
   //! return world bounding box of all particle *positions* (i.e., particles *ex* radius)
   box3f ParticleModel::getBounds() const
   {
-    box3f bounds = embree::empty;
+    box3f bounds = ospcommon::empty;
     for (size_t i=0;i<position.size();i++)
       bounds.extend(position[i]);
     return bounds;
