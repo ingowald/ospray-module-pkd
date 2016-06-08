@@ -193,18 +193,12 @@ namespace ospray {
     //! \brief Initialize this node's value from given corresponding XML node 
     void PKDGeometry::setFromXML(const xml::Node *const node, const unsigned char *binBasePtr)
     {
+      std::string tfcnName = node->getProp("transferFunction");
+      if (!tfcnName.empty()) {
+        transferFunction = dynamic_cast<sg::TransferFunction*>(sg::findNamedNode(tfcnName));
+      }
       for (size_t childID=0;childID<node->child.size();childID++) {
         xml::Node *child = node->child[childID];
-        if (child->name == "transferFunction") {
-          if (child->getProp("ref") != "")
-            transferFunction = dynamic_cast<sg::TransferFunction*>(findNamedNode(child->getProp("ref")));
-          else if (child->child.size()) {
-            Ref<sg::Node> n = sg::parseNode(child->child[0]);
-            transferFunction = n.cast<sg::TransferFunction>();
-          }
-          continue;
-        } 
-
         if (child->name == "position") {
           numParticles = child->getPropl("count");
           std::string format = child->getProp("format");
