@@ -19,8 +19,6 @@
 #include "ospray/common/OSPCommon.h"
 #include "apps/common/xml/XML.h"
 #include "ParticleModel.h"
-// embree
-#include "common/sys/filename.h"
 
 #define SILENT
 
@@ -250,7 +248,7 @@ namespace ospray {
     void parse__Uintah_Datafile(ParticleModel *model,
                                 const std::string &fileName)
     {
-      std::string basePath = embree::FileName(fileName).path();
+      std::string basePath = ospcommon::FileName(fileName).path();
 
       xml::XMLDoc *doc = NULL;
       try {
@@ -331,14 +329,14 @@ namespace ospray {
       }
     }
     
-    void importModel(ParticleModel *model, const embree::FileName &s)
+    void importModel(ParticleModel *model, const ospcommon::FileName &s)
     {
       xml::XMLDoc *doc = xml::readXML(s);
 
       assert(doc);
       assert(doc->child.size() == 1);
       assert(doc->child[0]->name == "Uintah_timestep");
-      std::string basePath = embree::FileName(s).path();
+      std::string basePath = ospcommon::FileName(s).path();
       parse__Uintah_timestep(model, basePath, doc->child[0]);
 
       std::stringstream attrs;
@@ -350,7 +348,7 @@ namespace ospray {
       std::cout << "#osp:mpm: read " << s << " : " 
                 << model->position.size() << " particles (" << attrs.str() << ")" << std::endl;
 
-      box3f bounds = embree::empty;
+      box3f bounds = ospcommon::empty;
       for (int i=0;i<model->position.size();i++) {
         bounds.extend(model->position[i]);
       }

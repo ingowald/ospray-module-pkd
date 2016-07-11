@@ -19,8 +19,6 @@
 #include "ospray/common/OSPCommon.h"
 #include "apps/common/xml/XML.h"
 #include "ParticleModel.h"
-// embree
-#include "common/sys/filename.h"
 
 #define SILENT
 
@@ -29,7 +27,7 @@ namespace ospray {
     using std::cout;
     using std::endl;
 
-    void importModel(ParticleModel *model, const embree::FileName &fileName)
+    void importModel(ParticleModel *model, const ospcommon::FileName &fileName)
     {
       FILE *file = fopen(fileName.c_str(),"r");
       if (!file) 

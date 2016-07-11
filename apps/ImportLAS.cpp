@@ -6,8 +6,6 @@
 #include "ColorMask.h"
 #include "ospray/common/OSPCommon.h"
 #include "ParticleModel.h"
-// embree
-#include "common/sys/filename.h"
 
 namespace ospray {
 	namespace las {
@@ -44,7 +42,7 @@ namespace ospray {
 				default: return RESERVED;
 			}
 		}
-		void importModel(ParticleModel *model, const embree::FileName &fileName){
+		void importModel(ParticleModel *model, const ospcommon::FileName &fileName){
 			LASreadOpener read_opener;
 			read_opener.set_file_name(fileName.c_str());
 			LASreader *reader = read_opener.open();

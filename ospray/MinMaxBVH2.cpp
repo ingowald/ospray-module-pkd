@@ -17,6 +17,7 @@
 #undef NDEBUG
 
 #include "MinMaxBVH2.h"
+#include "common/constants.h"
 
 // num prims that _force_ a leaf; undef to revert to sah termination criterion
 #define LEAF_THRESHOLD 2
@@ -48,13 +49,13 @@ namespace ospray {
                            const size_t begin, 
                            const size_t end)
   {
-    box3f bounds3     = embree::empty;
-    box3f centBounds3 = embree::empty;
+    box3f bounds3     = EmptyTy();
+    box3f centBounds3 = EmptyTy();
     float ctr[3];
     for (size_t i=begin;i<end;i++) {
       box3f pb = pa->boundsOf(primID[i]);
       bounds3.extend(pb);
-      centBounds3.extend(embree::center(pb));
+      centBounds3.extend(ospcommon::center(pb));
     }
 
     const box3f centBounds = centBounds3; // ((vec3f&)centBounds4.lower, (vec3f&)centBounds4.upper);
@@ -62,22 +63,22 @@ namespace ospray {
     node[nodeID].upper = make_vec4f(bounds3.upper,0);
                                     
     size_t dim = maxDim(centBounds.size());
-    (vec3f&)ctr = embree::center(centBounds);
+    (vec3f&)ctr = ospcommon::center(centBounds);
     float  pos = ctr[dim];
     float costNoSplit = 1+(end-begin);
 
     size_t l = begin;
     size_t r = end-1;
-    box3f lBounds = embree::empty;
-    box3f rBounds = embree::empty;
+    box3f lBounds = EmptyTy();
+    box3f rBounds = EmptyTy();
 
     while (1) {
-      while (l <= r && embree::center(pa->boundsOf(primID[l]))[dim] < pos) {
+      while (l <= r && ospcommon::center(pa->boundsOf(primID[l]))[dim] < pos) {
         lBounds.extend(pa->boundsOf(primID[l]));
         ++l;
       }
       // l now points to a element on the RIGHT side
-      while (l < r && embree::center(pa->boundsOf(primID[r]))[dim] >= pos) {
+      while (l < r && ospcommon::center(pa->boundsOf(primID[r]))[dim] >= pos) {
         rBounds.extend(pa->boundsOf(primID[r]));
         --r;
       }
@@ -123,13 +124,13 @@ namespace ospray {
       assert(l > begin);
       assert(l < end);
       for (int i=begin;i<l;i++) {
-        (vec3f&)ctr = embree::center(pa->boundsOf(primID[i]));
-        // vec4f ctr = embree::center(primBounds[primID[i]]);
+        (vec3f&)ctr = ospcommon::center(pa->boundsOf(primID[i]));
+        // vec4f ctr = ospcommon::center(primBounds[primID[i]]);
         assert(ctr[dim] < pos);
       }
       for (int i=l;i<end;i++) {
-        (vec3f&)ctr = embree::center(pa->boundsOf(primID[i]));
-        // vec4f ctr = embree::center(primBounds[primID[i]]);
+        (vec3f&)ctr = ospcommon::center(pa->boundsOf(primID[i]));
+        // vec4f ctr = ospcommon::center(primBounds[primID[i]]);
         assert(ctr[dim] >= pos);
       }
       size_t childID = node.size();

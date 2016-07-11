@@ -20,10 +20,12 @@
 #include "PKD.h"
 #include "sg/common/Integrator.h"
 // xml parser
-#include "apps/common/xml/XML.h"
+#include "common/xml/XML.h"
 
 #include <sys/types.h>
 #include <sys/mman.h>
+
+#include "common/constants.h"
 
 namespace ospray {
   namespace sg {
@@ -53,7 +55,7 @@ namespace ospray {
     //! return bounding box of this node (in local space)
     box3f PKDGeometry::getBounds() 
     {
-      box3f bounds = embree::empty;
+      box3f bounds = ospcommon::EmptyTy();
       for (size_t i=0;i<numParticles;i++)
         bounds.extend(getParticle(i));
       bounds.lower -= vec3f(radius);
@@ -191,18 +193,12 @@ namespace ospray {
     //! \brief Initialize this node's value from given corresponding XML node 
     void PKDGeometry::setFromXML(const xml::Node *const node, const unsigned char *binBasePtr)
     {
+      std::string tfcnName = node->getProp("transferFunction");
+      if (!tfcnName.empty()) {
+        transferFunction = dynamic_cast<sg::TransferFunction*>(sg::findNamedNode(tfcnName));
+      }
       for (size_t childID=0;childID<node->child.size();childID++) {
         xml::Node *child = node->child[childID];
-        if (child->name == "transferFunction") {
-          if (child->getProp("ref") != "")
-            transferFunction = dynamic_cast<sg::TransferFunction*>(findNamedNode(child->getProp("ref")));
-          else if (child->child.size()) {
-            Ref<sg::Node> n = sg::parseNode(child->child[0]);
-            transferFunction = n.cast<sg::TransferFunction>();
-          }
-          continue;
-        } 
-
         if (child->name == "position") {
           numParticles = child->getPropl("count");
           std::string format = child->getProp("format");
@@ -212,7 +208,7 @@ namespace ospray {
           } else {
             std::cout << "#osp:sg:PKDGeometry: found " << numParticles
                       << " QUANTIZED particles." << endl;
-            particle1ul = (uint64*)(binBasePtr+child->getPropl("ofs"));
+            particle1ul = (uint64_t*)(binBasePtr+child->getPropl("ofs"));
             this->format = OSP_ULONG;
           }
           particleBounds = getBounds();
