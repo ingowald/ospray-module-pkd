@@ -20,7 +20,7 @@
 #include "PKD.h"
 #include "sg/common/Integrator.h"
 // xml parser
-#include "apps/common/xml/XML.h"
+#include "common/xml/XML.h"
 
 #include <sys/types.h>
 #include <sys/mman.h>
