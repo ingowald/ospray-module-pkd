@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#include "common/constants.h"
+#include "ospcommon/constants.h"
 
 namespace ospray {
   namespace sg {

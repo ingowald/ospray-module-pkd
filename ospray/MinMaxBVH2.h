@@ -16,10 +16,11 @@
 
 #pragma once
 
-// ospray d
+// ospray 
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
-#include "common/box.h"
+// ospcommon
+#include "ospcommon/box.h"
 
 namespace ospray {
   typedef box_t<float, 4> box4f;
@@ -69,6 +70,7 @@ namespace ospray {
       return 2;
     } else {
       assert(false && "Invalid max val index for vec!?");
+      return -1;
     }
   }
 

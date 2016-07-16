@@ -16,9 +16,10 @@
 
 #include "PartiKD.h"
 #include "PKDConfig.h"
-#include "common/constants.h"
-#include "common/FileName.h"
-#include "ospray/MinMaxBVH2.h"
+#include "../ospray/MinMaxBVH2.h"
+
+#include "ospcommon/constants.h"
+#include "ospcommon/FileName.h"
 
 #define CHECK 1
 

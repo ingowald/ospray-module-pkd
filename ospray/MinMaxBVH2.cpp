@@ -17,7 +17,7 @@
 #undef NDEBUG
 
 #include "MinMaxBVH2.h"
-#include "common/constants.h"
+#include "ospcommon/constants.h"
 
 // num prims that _force_ a leaf; undef to revert to sah termination criterion
 #define LEAF_THRESHOLD 2

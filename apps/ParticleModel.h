@@ -19,14 +19,14 @@
 // ospray
 #include "ospray/common/OSPCommon.h"
 // embree
-#include "common/constants.h"
-#include "common/FileName.h"
+#include "ospcommon/constants.h"
+#include "ospcommon/FileName.h"
 // std
 #include <map>
 #include <vector>
 
 #include "PKDConfig.h"
-#include "ospray/MinMaxBVH2.h"
+#include "../ospray/MinMaxBVH2.h"
 
 namespace ospray {
   
