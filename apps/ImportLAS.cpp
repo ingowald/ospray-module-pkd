@@ -3,7 +3,7 @@
 #include <vector>
 #include <limits>
 #include <lasreader.hpp>
-#include "ColorMask.h"
+#include "../ColorMask.h"
 #include "ospray/common/OSPCommon.h"
 #include "ParticleModel.h"
 
