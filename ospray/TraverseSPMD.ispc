@@ -15,12 +15,12 @@
 // ======================================================================== //
 
 // ospray
-#include "ospray/math/vec.ih"
-#include "ospray/math/box.ih"
-#include "ospray/common/Ray.ih"
-#include "ospray/geometry/Geometry.ih"
-#include "ospray/common/Model.ih"
-#include "ospray/transferFunction/LinearTransferFunction.ih"
+#include "math/vec.ih"
+#include "math/box.ih"
+#include "common/Ray.ih"
+#include "geometry/Geometry.ih"
+#include "common/Model.ih"
+#include "transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
 // embree

@@ -14,16 +14,13 @@
 ## limitations under the License.                                           ##
 ## ======================================================================== ##
 
-CONFIGURE_OSPRAY()
-
 # ------------------------------------------------------------
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
 
-OSPRAY_ADD_LIBRARY(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} SHARED
+OSPRAY_CREATE_LIBRARY(sg_pkd
   PKD.cpp
-  )
-TARGET_LINK_LIBRARIES(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} 
-  ospray${OSPRAY_LIB_SUFFIX}
-  ospray_sg${OSPRAY_LIB_SUFFIX}
-  )
+  LINK
+  ospray
+  ospray_sg
+)
 # ------------------------------------------------------------

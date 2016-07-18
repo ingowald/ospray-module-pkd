@@ -14,7 +14,6 @@
 ## limitations under the License.                                           ##
 ## ======================================================================== ##
 
-CONFIGURE_OSPRAY()
 # ------------------------------------------------------------
 
 SET(APP_SRCS
@@ -38,14 +37,18 @@ IF (OSPRAY_MODULE_PARTIKD_LIDAR)
   SET(APP_SRCS ${APP_SRCS} ImportLAS.cpp)
 ENDIF()
 
-ADD_EXECUTABLE(ospPartiKD ${APP_SRCS})
+OSPRAY_CREATE_APPLICATION(PartiKD
+  ${APP_SRCS}
+  LINK
+  ${LIBS}
+  ospray_xml
+)
 
-TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_xml${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
 # for scene graph includes
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
+#INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
 #ADD_EXECUTABLE(ospPkd2Raw pkd2volume.cpp)
 #TARGET_LINK_LIBRARIES(ospPkd2Raw ospray_sg_pkd${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
