@@ -39,8 +39,8 @@ IF (OSPRAY_MODULE_PARTIKD)
     ospray/TraversePacket.ispc
     ospray/TraverseSPMD.ispc
 
-    ospray/render/PKDSplatter.ispc
-    ospray/render/PKDSplatter.cpp
+    #ospray/render/PKDSplatter.ispc
+    #ospray/render/PKDSplatter.cpp
     LINK
     ospray
   )
@@ -48,7 +48,7 @@ IF (OSPRAY_MODULE_PARTIKD)
 
   IF (NOT THIS_IS_MIC)
     # the scene graph plugin
-    ADD_SUBDIRECTORY(sg)
+    #ADD_SUBDIRECTORY(sg)
     
     # helper apps (converters, builders,...)
     ADD_SUBDIRECTORY(apps)

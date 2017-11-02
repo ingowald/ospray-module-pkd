@@ -14,16 +14,17 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
+#include <cmath>
 #include "ParticleModel.h"
 #include "PKDConfig.h"
 
 namespace ospray {
 
   // file importers
-  namespace uintah { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  //namespace uintah { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
   namespace xyz { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-  namespace cosmos { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-  namespace cosmic_web { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  //namespace cosmos { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
+  //namespace cosmic_web { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
 #if PARTIKD_LIDAR_ENABLED
   namespace las { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
 #endif
@@ -54,9 +55,9 @@ namespace ospray {
         vec3f p(drand48(),drand48(),drand48());
         position.push_back(p);
         addAttribute("random",
-                     cos(11*p.x+5*p.y+7*p.z)+
-                     cos(5*p.y+7*p.z)+
-                     sin(13*p.x*p.y+11.f*p.x)*cos(11*p.z));
+                     std::cos(11.f*p.x+5.f*p.y+7.f*p.z)+
+                     std::cos(5.f*p.y+7.f*p.z)+
+                     std::sin(13.f*p.x*p.y+11.f*p.x)*std::cos(11.f*p.z));
       }
     } else if (fn.ext() == "REGULAR") {
       size_t num = atol(fn.str().c_str());
@@ -65,19 +66,18 @@ namespace ospray {
         for (int y=0;y<num;y++)
           for (int x=0;x<num;x++)
             position.push_back(vec3f(x,y,z));
-    } else if (fn.ext() == "xml") {
+    } else if (fn.ext() == "xyz") {
+      xyz::importModel(this,fn);
+    }/* else if (fn.ext() == "xml") {
       // assume uintah format
       uintah::importModel(this,fn);
     } else if (fn.ext() == "dat") {
       // assume uintah format
       cosmic_web::importModel(this,fn);
-    } else if (fn.ext() == "xyz") {
-      // assume uintah format
-      xyz::importModel(this,fn);
     } else if (fn.ext() == "cosmos") {
       // assume uintah format
       cosmos::importModel(this,fn);
-    }
+    }*/
 #if PARTIKD_LIDAR_ENABLED
     else if (fn.ext() == "las" || fn.ext() == "laz"){
       las::importModel(this, fn);

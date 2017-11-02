@@ -20,10 +20,10 @@ SET(APP_SRCS
   PartiKD.cpp
   ParticleModel.cpp
   #importers
-  ImportUIntah.cpp
-  ImportCOSMOS.cpp
+  #ImportUIntah.cpp
+  #ImportCOSMOS.cpp
   ImportXYZ.cpp
-  ImportCosmicWeb.cpp
+  #ImportCosmicWeb.cpp
 )
 
 IF (OSPRAY_MODULE_PARTIKD_LIDAR)
@@ -40,8 +40,10 @@ ENDIF()
 OSPRAY_CREATE_APPLICATION(PartiKD
   ${APP_SRCS}
   LINK
-  ${LIBS}
+  ospray
+  ospray_common
   ospray_xml
+  ${LIBS}
 )
 
 # ------------------------------------------------------------
