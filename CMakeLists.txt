@@ -29,7 +29,7 @@ IF (OSPRAY_MODULE_PARTIKD)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES_ISPC(${CMAKE_CURRENT_BINARY_DIR})
   # ------------------------------------------------------------
-  OSPRAY_CREATE_LIBRARY(module_pkd
+  OSPRAY_CREATE_LIBRARY(ospray_module_pkd
     ospray/PKDGeometry.cpp
     ospray/PKDGeometry.ispc
     ospray/MinMaxBVH2.cpp

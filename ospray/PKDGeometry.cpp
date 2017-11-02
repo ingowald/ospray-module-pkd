@@ -29,7 +29,6 @@ namespace ospray {
   PartiKDGeometry::PartiKDGeometry()
     : particleRadius(.02f)
   {
-    PING;
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
   }
 
