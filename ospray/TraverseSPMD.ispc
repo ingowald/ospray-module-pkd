@@ -23,10 +23,6 @@
 #include "transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
-// embree
-#include "embree2/rtcore.isph"
-#include "embree2/rtcore_scene.isph"
-#include "embree2/rtcore_geometry_user.isph"
 
 #define modify_radius(t) 4.f
 
@@ -272,16 +268,36 @@ inline void pkd_traverse_spmd(uniform PartiKDGeometry *uniform self,
   pkd_traverse_spmd(self,ray,rdir,org,t_in,t_out,dir_sign,isShadowRay);
 }
 
-/*! the 'virtual' traverse function for a pkd geometry */
-void PartiKDGeometry_intersect_spmd(uniform PartiKDGeometry *uniform self,
-                                    varying Ray &ray,
-                                    uniform size_t primID)
-{ pkd_traverse_spmd(self,ray,primID,false); }
+unmasked void PartiKDGeometry_intersect_spmd(const struct RTCIntersectFunctionNArguments *uniform args)
+{
+  if (!args->valid[programIndex]) {
+    return;
+  }
+  // this assumes that the args->rayhit is actually a pointer toa varying ray!
+  varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
+  uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
+
+  pkd_traverse_spmd(self, *ray, args->primID, false);
+  if (ray->primID == args->primID) {
+    ray->instID = args->context->instID[0];
+  }
+}
 
 /*! the 'virtual' occluded function for a pkd geometry */
-void PartiKDGeometry_occluded_spmd(uniform PartiKDGeometry *uniform self,
-                                   varying Ray &ray,
-                                   uniform size_t primID)
-{ pkd_traverse_spmd(self,ray,primID,true); }
+unmasked void PartiKDGeometry_occluded_spmd(const struct RTCIntersectFunctionNArguments *uniform args)
+{
+  if (!args->valid[programIndex]) {
+    return;
+  }
+  // this assumes that the args->rayhit is actually a pointer toa varying ray!
+  varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
+  uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
+
+  pkd_traverse_spmd(self, *ray, args->primID, true);
+  if (ray->primID == args->primID) {
+    ray->instID = args->context->instID[0];
+  }
+}
+
 
 

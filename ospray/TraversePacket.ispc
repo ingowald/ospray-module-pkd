@@ -24,10 +24,6 @@
 // this module
 #include "PKDGeometry.ih"
 #include "PKDConfig.h"
-// embree
-#include "embree2/rtcore.isph"
-#include "embree2/rtcore_scene.isph"
-#include "embree2/rtcore_geometry_user.isph"
 
 
 // uniform int rayID = 0;
@@ -70,13 +66,13 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 
   const float a = dot(ray.dir,ray.dir);
   const float b = -2.f*dot(ray.dir,A);
-	const float AA = dot(A,A);
+  const float AA = dot(A,A);
 #if LOD
   const float radius = self->particleRadius * max(1.f, (1.f/16.f) * sqrt(sqrt(AA)));
 #else	
   const float radius = self->particleRadius;
 #endif	
-	const float c = AA-radius*radius;
+  const float c = AA-radius*radius;
   
   const float radical = b*b-4.f*a*c;
   if (radical < 0.f) return false;
@@ -184,16 +180,16 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
       getParticle(self,p,nodeID);
 
 #if LOD			
-			const float dist_lod = max(1.f, (1.f/16.f) * sqrt(t_in));
-			if (nodeID > 4096)
-			{
-				uniform Particle parent;
-				getParticle(self,parent,(nodeID-1)>>1);
-				uniform vec3f d = make_vec3f(p.pos[0] - parent.pos[0], p.pos[1] - parent.pos[1], p.pos[2] - parent.pos[2]);
-				//if distance is < 1 pixel, previous point was "good enough"; break;
-				if (dot(d,d) < dist_lod)
-						break;
-			}
+      const float dist_lod = max(1.f, (1.f/16.f) * sqrt(t_in));
+      if (nodeID > 4096)
+      {
+        uniform Particle parent;
+        getParticle(self,parent,(nodeID-1)>>1);
+        uniform vec3f d = make_vec3f(p.pos[0] - parent.pos[0], p.pos[1] - parent.pos[1], p.pos[2] - parent.pos[2]);
+        //if distance is < 1 pixel, previous point was "good enough"; break;
+        if (dot(d,d) < dist_lod)
+          break;
+      }
 #endif
 			
       if (nodeID >= numInnerNodes) {
@@ -395,15 +391,34 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
 }
 
 /*! the 'virtual' traverse function for a pkd geometry */
-void PartiKDGeometry_intersect_packet(uniform PartiKDGeometry *uniform self,
-                                      varying Ray &ray,
-                                      uniform size_t primID)
-{ pkd_traverse_packet(self,ray,primID,false); }
+unmasked void PartiKDGeometry_intersect_packet(const struct RTCIntersectFunctionNArguments *uniform args)
+{
+  if (!args->valid[programIndex]) {
+    return;
+  }
+  // this assumes that the args->rayhit is actually a pointer toa varying ray!
+  varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
+  uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
+
+  pkd_traverse_packet(self, *ray, args->primID, false);
+  if (ray->primID == args->primID) {
+    ray->instID = args->context->instID[0];
+  }
+}
 
 /*! the 'virtual' occluded function for a pkd geometry */
-void PartiKDGeometry_occluded_packet(uniform PartiKDGeometry *uniform self,
-                                     varying Ray &ray,
-                                     uniform size_t primID)
-{ pkd_traverse_packet(self,ray,primID,true); }
+unmasked void PartiKDGeometry_occluded_packet(const struct RTCIntersectFunctionNArguments *uniform args)
+{
+  if (!args->valid[programIndex]) {
+    return;
+  }
+  // this assumes that the args->rayhit is actually a pointer toa varying ray!
+  varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
+  uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
 
+  pkd_traverse_packet(self, *ray, args->primID, true);
+  if (ray->primID == args->primID) {
+    ray->instID = args->context->instID[0];
+  }
+}
 

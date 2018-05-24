@@ -22,10 +22,6 @@
 #include "common/Ray.ih"
 #include "geometry/Geometry.ih"
 #include "common/Model.ih"
-// embree
-#include "embree2/rtcore.isph"
-#include "embree2/rtcore_scene.isph"
-#include "embree2/rtcore_geometry_user.isph"
 
 
 /*! BVH node for a MinMaxBVH2 */

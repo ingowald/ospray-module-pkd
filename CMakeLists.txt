@@ -21,7 +21,7 @@ OPTION(OSPRAY_MODULE_PKD_ISPV "Build PKD-module in-situ particle vis service" OF
 
 IF (OSPRAY_MODULE_PARTIKD)
   IF (OSPRAY_MODULE_PARTIKD_LIDAR)
-	SET(PARTIKD_LIDAR_ENABLED 1)
+    SET(PARTIKD_LIDAR_ENABLED 1)
   ELSE()
     SET(PARTIKD_LIDAR_ENABLED 0)
   ENDIF()
@@ -34,25 +34,26 @@ IF (OSPRAY_MODULE_PARTIKD)
     ospray/PKDGeometry.ispc
     ospray/MinMaxBVH2.cpp
     ospray/MinMaxBVH2.ispc
-    ospray/AlphaSpheres.cpp
-    ospray/AlphaSpheres.ispc
+    #ospray/AlphaSpheres.cpp
+    #ospray/AlphaSpheres.ispc
     ospray/TraversePacket.ispc
     ospray/TraverseSPMD.ispc
 
     #ospray/render/PKDSplatter.ispc
     #ospray/render/PKDSplatter.cpp
+
     LINK
     ospray
+    ospray_sg
+    ospray_module_ispc
   )
   # ------------------------------------------------------------
 
-  IF (NOT THIS_IS_MIC)
-    # the scene graph plugin
-    #ADD_SUBDIRECTORY(sg)
-    
-    # helper apps (converters, builders,...)
-    ADD_SUBDIRECTORY(apps)
-  ENDIF()
+  # the scene graph plugin
+  #ADD_SUBDIRECTORY(sg)
+
+  # helper apps (converters, builders,...)
+  #ADD_SUBDIRECTORY(apps)
 
 #  CONFIGURE_MPI()
 #  ADD_EXECUTABLE(ospDPKDservice
