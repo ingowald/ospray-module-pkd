@@ -15,10 +15,10 @@
 ## ======================================================================== ##
 
 # ------------------------------------------------------------
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps)
 
 OSPRAY_CREATE_LIBRARY(sg_pkd
-  PKD.cpp
+  #PKD.cpp
   LINK
   ospray
   ospray_sg
