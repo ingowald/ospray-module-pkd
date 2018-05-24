@@ -16,11 +16,8 @@
 
 #undef NDEBUG
 
-#include "sg/module/Module.h"
 #include "PKD.h"
-#include "sg/common/Integrator.h"
-// xml parser
-#include "common/xml/XML.h"
+#include "ospcommon/xml/XML.h"
 
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -36,16 +33,12 @@ namespace ospray {
 
     //! constructor
     PKDGeometry::PKDGeometry() 
-      : Geometry("pkd_geometry"), 
-        useOldAlphaSpheresCode(false),
-        radius(0.f),
-        transferFunction(NULL),
-        numParticles(0),
-        particle3f(NULL),
-        ospPositionData(NULL),
-        ospGeometry(NULL)
-    {};
+      : Geometry("pkd_geometry")
+    {
+      PING;
+    }
 
+#if 0
     PKDGeometry::~PKDGeometry() 
     {
       for (int i=0;i<attribute.size();i++) delete attribute[i]; 
@@ -267,13 +260,9 @@ namespace ospray {
       this->transferFunction = transferFunction; 
       lastModified = TimeStamp::now(); 
     }
+#endif
 
     OSP_REGISTER_SG_NODE(PKDGeometry);
-
-    OSPRAY_SG_DECLARE_MODULE(pkd)
-    {
-      cout << "#osp:sg: loading 'pkd' module (defines sg::PKDGeometry)" << endl;
-    }
-
   } // ::ospray::sg
 } // ::ospray
+

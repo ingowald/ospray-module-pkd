@@ -16,20 +16,16 @@
 
 #pragma once
 
-#include "sg/geometry/Spheres.h"
+#include "common/sg/geometry/Geometry.h"
 
 namespace ospray {
   namespace sg {
 
-    // =======================================================
-    /*! \brief Realizes a set of spheres with associated attributes
-        and transfer function for color- and alaha-mapping.  */
-    // =======================================================
     struct PKDGeometry : public sg::Geometry {
-
       //! constructor
       PKDGeometry();
 
+#if 0
       //! destructor
       virtual ~PKDGeometry();
       
@@ -65,7 +61,7 @@ namespace ospray {
 
       vec3f getParticle(size_t i) const;
 
-    // protected:
+      // protected:
       struct Attribute {
         std::string name;
         float      *value;
@@ -111,9 +107,10 @@ namespace ospray {
       bool useOldAlphaSpheresCode;
     // public:
     //   static sg::World *importPKDFile(const std::string &fileName);
+#endif
     };
     
-  } // ::ospray::sg
+  } // ::ospray::pkd
 } // ::ospray
 
 

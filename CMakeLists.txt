@@ -43,10 +43,12 @@ IF (OSPRAY_MODULE_PARTIKD)
     #ospray/render/PKDSplatter.cpp
 
     sg/test.cpp
+    sg/PKD.cpp
 
     LINK
     ospray
     ospray_sg
+    ospray_common
     ospray_module_ispc
   )
   # ------------------------------------------------------------
