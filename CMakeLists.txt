@@ -45,7 +45,7 @@ IF (OSPRAY_MODULE_PARTIKD)
     sg/test.cpp
     sg/PKD.cpp
 
-    LINK
+  LINK
     ospray
     ospray_sg
     ospray_common

@@ -19,9 +19,6 @@
 #include "PKD.h"
 #include "ospcommon/xml/XML.h"
 
-#include <sys/types.h>
-#include <sys/mman.h>
-
 #include "ospcommon/constants.h"
 
 namespace ospray {
@@ -263,6 +260,8 @@ namespace ospray {
 #endif
 
     OSP_REGISTER_SG_NODE(PKDGeometry);
+
   } // ::ospray::sg
 } // ::ospray
+
 
