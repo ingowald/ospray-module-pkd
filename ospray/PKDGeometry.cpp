@@ -123,6 +123,7 @@ namespace ospray {
 
     // compute attribute mask and attrib lo/hi values
     float attr_lo = 0.f, attr_hi = 0.f;
+    // TODO will: binBitsArray is leaked on commits
     uint32 *binBitsArray = NULL;
     attribute = (float*)(attributeData?attributeData->data:NULL);
 
@@ -131,8 +132,10 @@ namespace ospray {
     if (attribute) {
       cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
       attr_lo = attr_hi = attribute[0];
-      for (size_t i=0;i<numParticles;i++)
-        { attr_lo = std::min(attr_lo,attribute[i]); attr_hi = std::max(attr_hi,attribute[i]); }
+      for (size_t i=0;i<numParticles;i++) {
+        attr_lo = std::min(attr_lo,attribute[i]);
+        attr_hi = std::max(attr_hi,attribute[i]);
+      }
 
       binBitsArray = new uint32[numInnerNodes];
       size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
@@ -152,7 +155,8 @@ namespace ospray {
         binBitsArray[pID] = lBits|rBits;
         // cout << " bits " << pID << " : " << (int*)lBits << " " << (int*)rBits << endl;
       }
-      cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
+      cout << "#osp:pkd: found attribute [" << attr_lo << ".."
+        << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
     }
 #endif
 
@@ -161,15 +165,21 @@ namespace ospray {
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now
     // -------------------------------------------------------
-    ispc::PartiKDGeometry_set(getIE(),model->getIE(),isQuantized,useSPMD,
+    ispc::PartiKDGeometry_set(getIE(),
+                              model->getIE(),
+                              isQuantized,
+                              useSPMD,
                               transferFunction?transferFunction->getIE():NULL,
                               particleRadius,
                               numParticles,
                               numInnerNodes,
                               (ispc::PKDParticle*)particle,
-                              attribute,binBitsArray,
-                              (ispc::box3f&)centerBounds,(ispc::box3f&)sphereBounds,
-                              attr_lo,attr_hi);
+                              attribute,
+                              binBitsArray,
+                              (ispc::box3f&)centerBounds,
+                              (ispc::box3f&)sphereBounds,
+                              attr_lo,
+                              attr_hi);
   }    
 
   OSP_REGISTER_GEOMETRY(PartiKDGeometry,pkd_geometry);

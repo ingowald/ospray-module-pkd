@@ -18,7 +18,7 @@
 #include "PKD.h"
 #include "ospcommon/xml/XML.h"
 #include "common/sg/importer/Importer.h"
-#include "common/sg/geometry/Spheres.h"
+#include "common/sg/transferFunction/TransferFunction.h"
 #include "common/sg/common/Common.h"
 #include "ospcommon/xml/XML.h"
 #include "ospcommon/constants.h"
@@ -315,10 +315,6 @@ namespace ospray {
         // TODO: How are attributes stored again? I forgot, need to fix
         // the converter and make some examples
         if (e.name == "position") {
-          std::cout << "pos: ofs: " << e.getProp("ofs")
-            << ", count = "  << e.getProp("count")
-            << ", format = " << e.getProp("format")
-            << "\n";
           const std::string format = e.getProp("format");
           const size_t offset = std::stoull(e.getProp("ofs"));
           const size_t count = std::stoull(e.getProp("count"));
@@ -337,8 +333,23 @@ namespace ospray {
         } else if (e.name == "radius") {
           geom->createChild("radius", "float", std::stof(e.content));
         } else if (e.name == "attribute") {
-          std::cout << "TODO WILL: Handle attributes\n";
+          std::cout << "Got attribute" << e.getProp("name") << "\n";
+          const std::string format = e.getProp("format");
+          const size_t offset = std::stoull(e.getProp("ofs"));
+          const size_t count = std::stoull(e.getProp("count"));
+          if (format == "float") {
+            auto attribData = std::make_shared<DataArray1f>(reinterpret_cast<float*>(binBasePtr + offset), count, false);
+            attribData->setName("attribute");
+            geom->add(attribData);
+          } else {
+            std::cout << "Unsupported attribute type: " << format << "\n";
+          }
         }
+      }
+      if (geom->hasChild("attribute")) {
+        auto tfn = createNode("transferFunction", "TransferFunction")->nodeAs<TransferFunction>();
+        tfn->createChild("valueRange", "vec2f", vec2f(0, 1));
+        geom->add(tfn);
       }
 
       auto materials = geom->child("materialList").nodeAs<MaterialList>();

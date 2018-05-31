@@ -79,13 +79,17 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
     const uniform float attrib_lo = self->attr_lo;
     const uniform float attrib_hi = self->attr_hi;
 
+    // TODO: is this needed if we set value range?
     attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
   
     // compute alpha value from attribute value
     const float alpha
       = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
-    if (alpha <= .5f)
+    print("alpha for attrib % is %\n", attrib, alpha);
+
+    if (alpha <= .5f) {
       return false;
+    }
   }
 #endif
 
@@ -176,6 +180,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
         break;
       } 
 
+      // TODO: This is cullign incorrectly?
       if (self->innerNode_attributeMask) {
         const uniform uint32 nodeAttrBits = self->innerNode_attributeMask[nodeID];
         if ((nodeAttrBits & self->transferFunction_activeBinBits) == 0)
