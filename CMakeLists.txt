@@ -42,7 +42,6 @@ IF (OSPRAY_MODULE_PARTIKD)
     #ospray/render/PKDSplatter.ispc
     #ospray/render/PKDSplatter.cpp
 
-    sg/test.cpp
     sg/PKD.cpp
 
   LINK
