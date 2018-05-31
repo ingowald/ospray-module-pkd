@@ -35,32 +35,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
                                                   uniform primID_t primID,
                                                   varying Ray &ray)
 {
-  // uniform bool dbg = false; //(rayID == 338);
-  
-  // if (dbg) print("ENTER ISEC primID %\n",primID);
-  // typecast "implicit self" pointer to the proper geometry type
-
-  // PartiKDGeometry *uniform self = (PartiKDGeometry *uniform)geomPtr;
-// #if PRIMID64
-//   const uniform int64 offset = 3*primID;
-//   const uniform float *uniform pos = &self->particle[0].position[0];
-//   pos += offset;
-// #else
-//   const uniform float *uniform pos = &self->particle[primID].position[0];
-// #endif
-//   if (dbg) print("ISEC pos0 %\n",self->particle);
-//   if (dbg) print("ISEC pos ptr %\n",pos);
-  // read sphere members required for intersection test
-  // if (dbg) print("got radius %\n",radius);
-  // // uniform vec3f center = (uniform vec3f &)self->particle[primID].position;
-  // if (dbg) print("getting pos...\n");
-  // const vec3f center = make_vec3f((varying float)pos[0],pos[1],pos[2]);
-  // if (dbg) print("GOT pos...\n");
-
-  // uniform vec3f center;
-  // uniform uint32 dim;
-  // getParticle(self,primID,center,dim);
-  
   // perform first half of intersection test ....
   const vec3f A = make_vec3f(p.pos[0],p.pos[1],p.pos[2]) - ray.org;
 
@@ -324,7 +298,6 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
   and primary rays, as indicated by the 'isShadowRay' flag */
 inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
                                 varying Ray &ray,
-                                uniform size_t primID,
                                 uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
@@ -400,8 +373,8 @@ unmasked void PartiKDGeometry_intersect_packet(const struct RTCIntersectFunction
   varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
   uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
 
-  pkd_traverse_packet(self, *ray, args->primID, false);
-  if (ray->primID == args->primID) {
+  pkd_traverse_packet(self, *ray, false);
+  if (ray->geomID != self->geometry.geomID) {
     ray->instID = args->context->instID[0];
   }
 }
@@ -416,9 +389,10 @@ unmasked void PartiKDGeometry_occluded_packet(const struct RTCIntersectFunctionN
   varying Ray *uniform ray = (varying Ray *uniform)args->rayhit;
   uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
 
-  pkd_traverse_packet(self, *ray, args->primID, true);
-  if (ray->primID == args->primID) {
+  pkd_traverse_packet(self, *ray, false);
+  if (ray->geomID != self->geometry.geomID) {
     ray->instID = args->context->instID[0];
+    ray->t = neg_inf;
   }
 }
 

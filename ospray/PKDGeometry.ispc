@@ -63,6 +63,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const uniform float attrib_hi = THIS->attr_hi;
 
     float attrib_org;
+#if PRIMID64
     uint64 primID64 = (uint32)ray.primID_hi64;
     primID64 <<= 32;
     primID64 += (uint32)ray.primID;
@@ -70,6 +71,9 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
       uniform float *uniform ptr = attribArray + pID;
       attrib_org = ptr[0];
     }
+#else
+    attrib_org = attribArray[ray.primID];
+#endif
       
     const float attrib
       = (attrib_org - attrib_lo)
