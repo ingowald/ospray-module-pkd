@@ -84,7 +84,7 @@ namespace ospray {
     {
       std::cout << "Loading PKDGeometry from " << fileName << std::endl;
 
-      // TODO: Read the radius from the XML file
+      // Read the radius from the XML file
       // Map the binary file and hand it off to the PKDGeometry node
       // as a shared data pointer.
       // We then also need to make a transfer function in the case that the
