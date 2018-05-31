@@ -85,7 +85,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
     // compute alpha value from attribute value
     const float alpha
       = self->transferFunction->getOpacityForValue(self->transferFunction,attrib);
-    print("alpha for attrib % is %\n", attrib, alpha);
 
     if (alpha <= .5f) {
       return false;

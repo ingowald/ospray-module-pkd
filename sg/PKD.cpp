@@ -71,6 +71,14 @@ namespace ospray {
       return vec3f(ix, iy, iz);
     }
 
+    void PKDGeometry::postCommit(RenderContext &)
+    {
+      auto geom = valueAs<OSPGeometry>();
+      ospSetObject(geom, "transferFunction",
+                   child("transferFunction").valueAs<OSPTransferFunction>());
+      ospCommit(geom);
+    }
+
 #if 0
     PKDGeometry::~PKDGeometry() 
     {
@@ -348,7 +356,7 @@ namespace ospray {
       }
       if (geom->hasChild("attribute")) {
         auto tfn = createNode("transferFunction", "TransferFunction")->nodeAs<TransferFunction>();
-        tfn->createChild("valueRange", "vec2f", vec2f(0, 1));
+        tfn->createChild("valueRange", "vec2f", vec2f(0, 0));
         geom->add(tfn);
       }
 

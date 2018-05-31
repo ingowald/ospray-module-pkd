@@ -27,6 +27,8 @@ namespace ospray {
 
       box3f bounds() const override;
 
+      void postCommit(RenderContext &ctx) override;
+
     private:
       vec3f decodeParticle(uint64_t i) const;
 #if 0

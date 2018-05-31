@@ -104,6 +104,8 @@ namespace ospray {
     transferFunction = (TransferFunction*)getParamObject("transferFunction",NULL);
     if (transferFunction) {
       transferFunction->registerListener(this);
+    } else {
+      std::cout << "No transfer function set!\n";
     }
 
     bool useSPMD = getParam1i("useSPMD",0);
@@ -180,6 +182,11 @@ namespace ospray {
                               (ispc::box3f&)sphereBounds,
                               attr_lo,
                               attr_hi);
+
+    if (transferFunction) {
+      ispc::PartiKDGeometry_updateTransferFunction(this->getIE(),
+                                                   transferFunction->getIE());
+    }
   }    
 
   OSP_REGISTER_GEOMETRY(PartiKDGeometry,pkd_geometry);
