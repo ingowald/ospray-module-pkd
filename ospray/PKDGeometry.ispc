@@ -87,8 +87,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
                                                                  attrib);
     dg.color = make_vec4f(color.x,color.y,color.z,1.0);
-    print("color for attrib % is {%, %, %, %}\n", attrib,
-        dg.color.x, dg.color.y, dg.color.z, dg.color.w);
 #else
     foreach_unique(upper64 in ray.primID_hi64) {
       if (upper64) print("UPPER: %\n",upper64);
