@@ -56,7 +56,7 @@ IF (OSPRAY_MODULE_PARTIKD)
   #ADD_SUBDIRECTORY(sg)
 
   # helper apps (converters, builders,...)
-  #ADD_SUBDIRECTORY(apps)
+  ADD_SUBDIRECTORY(apps)
 
 #  CONFIGURE_MPI()
 #  ADD_EXECUTABLE(ospDPKDservice

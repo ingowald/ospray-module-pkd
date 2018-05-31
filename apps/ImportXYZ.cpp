@@ -17,7 +17,7 @@
 #undef NDEBUG
 
 #include "ospray/common/OSPCommon.h"
-#include "apps/common/xml/XML.h"
+#include "ospcommon/xml/XML.h"
 #include "ParticleModel.h"
 
 #define SILENT
