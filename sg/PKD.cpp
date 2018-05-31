@@ -346,18 +346,7 @@ namespace ospray {
       materials->item(0)["Kd"] = vec3f(1.f);
       materials->item(0)["Ks"] = vec3f(0.2f);
 
-#if 0
-      auto model = createNode(fileName.str() + "_model", "Model");
-      model->add(geom);
-
-      auto instance = createNode(fileName.str() + "_instance", "Instance");
-      instance->setChild("model", model);
-      model->setParent(instance);
-
-      world->add(instance);
-#else
       world->add(geom);
-#endif
     }
 
     OSP_REGISTER_SG_NODE(PKDGeometry);

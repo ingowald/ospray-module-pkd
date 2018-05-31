@@ -66,6 +66,9 @@ struct PartiKDGeometry {
   /*! (maximum) particle radius */
   float particleRadius;
 
+  /*! ray epsilon to avoid self-intersections, like the spheres geom */
+  float epsilon;
+
 
   // -------------------------------------------------------------------------
   // THE FOLLOWING VALUES WILL ONLY BE SET FOR PKD-GEOMETRIES WITH ATTRIBUTES:

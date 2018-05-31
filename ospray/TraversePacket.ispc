@@ -61,7 +61,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
   float hit_t = 0.f;
   if (t_in > ray.t0 && t_in < ray.t) {
     hit_t = t_in;
-  } else if (t_out > ray.t0 && t_out < ray.t) {
+  } else if (t_out > (ray.t0 + self->epsilon) && t_out < ray.t) {
     hit_t = t_out;
   }
   else /* miss : */ return false;

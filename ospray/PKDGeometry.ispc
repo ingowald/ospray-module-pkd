@@ -192,6 +192,8 @@ export void PartiKDGeometry_set(void *uniform _geom,
   geom->attr_lo         = attr_lo;
   geom->attr_hi         = attr_hi;
   geom->innerNode_attributeMask = innerNode_attributeMask;
+  geom->epsilon = geom->particleRadius / 100.0;
+
   print("array of inner-node attribute masks: %\n",innerNode_attributeMask);
 
   geom->transferFunction = (TransferFunction *uniform)transferFunction;
