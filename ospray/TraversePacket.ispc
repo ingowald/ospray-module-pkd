@@ -79,7 +79,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
     const uniform float attrib_lo = self->attr_lo;
     const uniform float attrib_hi = self->attr_hi;
 
-    // TODO: is this needed if we set value range?
     attrib = (attrib - attrib_lo) * rcp(attrib_hi - attrib_lo + 1e-10f);
   
     // compute alpha value from attribute value
