@@ -16,8 +16,8 @@
 
 # mini-scene graph viewer for _geometry_ (intentionally simple)
 OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
+OPTION(OSPRAY_MODULE_PARTIKD_BUILDER "Build Particle KD Tree Builder apps." ON)
 OPTION(OSPRAY_MODULE_PARTIKD_LIDAR "Build Particle KD Tree Module for LiDAR (requires LAStools)." OFF)
-OPTION(OSPRAY_MODULE_PKD_ISPV "Build PKD-module in-situ particle vis service" OFF)
 
 IF (OSPRAY_MODULE_PARTIKD)
   IF (OSPRAY_MODULE_PARTIKD_LIDAR)
@@ -56,7 +56,9 @@ IF (OSPRAY_MODULE_PARTIKD)
   #ADD_SUBDIRECTORY(sg)
 
   # helper apps (converters, builders,...)
-  ADD_SUBDIRECTORY(apps)
+  IF (OSPRAY_MODULE_PARTIKD_BUILDER)
+    ADD_SUBDIRECTORY(apps)
+  ENDIF()
 
 #  CONFIGURE_MPI()
 #  ADD_EXECUTABLE(ospDPKDservice
