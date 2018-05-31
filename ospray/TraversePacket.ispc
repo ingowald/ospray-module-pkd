@@ -374,7 +374,7 @@ unmasked void PartiKDGeometry_intersect_packet(const struct RTCIntersectFunction
   uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
 
   pkd_traverse_packet(self, *ray, false);
-  if (ray->geomID != self->geometry.geomID) {
+  if (ray->geomID == self->geometry.geomID) {
     ray->instID = args->context->instID[0];
   }
 }
@@ -390,7 +390,7 @@ unmasked void PartiKDGeometry_occluded_packet(const struct RTCIntersectFunctionN
   uniform PartiKDGeometry *uniform self = (uniform PartiKDGeometry *uniform)args->geometryUserPtr;
 
   pkd_traverse_packet(self, *ray, false);
-  if (ray->geomID != self->geometry.geomID) {
+  if (ray->geomID == self->geometry.geomID) {
     ray->instID = args->context->instID[0];
     ray->t = neg_inf;
   }
