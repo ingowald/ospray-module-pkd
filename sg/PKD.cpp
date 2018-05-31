@@ -37,6 +37,40 @@ namespace ospray {
       PING;
     }
 
+
+    box3f PKDGeometry::bounds() const
+    {
+
+      box3f box = empty;
+      if (hasChild("position")) {
+        auto pos = child("position").nodeAs<DataBuffer>();
+        if (pos->getType() == OSP_FLOAT3) {
+          for (size_t i = 0; i < pos->size(); ++i) {
+            box.extend(pos->get<vec3f>(i));
+          }
+        } else if (pos->getType() == OSP_ULONG) {
+          for (size_t i = 0; i < pos->size(); ++i) {
+            const uint64_t p = pos->get<uint64_t>(i);
+            box.extend(decodeParticle(p));
+          }
+        }
+      }
+      if (hasChild("radius")) {
+        const float radius = child("radius").valueAs<float>();
+        box.lower -= vec3f(radius);
+        box.upper += vec3f(radius);
+      }
+      return box;
+    }
+
+    vec3f PKDGeometry::decodeParticle(uint64_t i) const {
+      const uint64_t mask = (1 << 20) - 1;
+      const uint64_t ix = (i >> 2) & mask;
+      const uint64_t iy = (i >> 22) & mask;
+      const uint64_t iz = (i >> 42) & mask;
+      return vec3f(ix, iy, iz);
+    }
+
 #if 0
     PKDGeometry::~PKDGeometry() 
     {
@@ -165,14 +199,6 @@ namespace ospray {
       lastCommitted = TimeStamp::now();
     }
 
-    vec3f decodeParticle(size_t i) {
-      size_t mask = (1<<20)-1;
-      size_t ix = (i>> 2)&mask;
-      size_t iy = (i>>22)&mask;
-      size_t iz = (i>>42)&mask;
-      return vec3f(ix,iy,iz);
-    }
-
     vec3f PKDGeometry::getParticle(size_t i) const 
     {
       switch(format) {
@@ -272,7 +298,7 @@ namespace ospray {
       // data has attributes
       auto doc = xml::readXML(fileName);
       const std::string binFileName = fileName.str() + "bin";
-      const unsigned char *binBasePtr = mapFile(binFileName);
+      unsigned char *binBasePtr = const_cast<unsigned char*>(mapFile(binFileName));
       if (!binBasePtr) {
         std::cout << "Failed to load corresponding pkdbin file for " << fileName.str() << "\n";
         throw std::runtime_error("Failed to load corresponding pkdbin file for "
@@ -293,18 +319,45 @@ namespace ospray {
             << ", count = "  << e.getProp("count")
             << ", format = " << e.getProp("format")
             << "\n";
+          const std::string format = e.getProp("format");
+          const size_t offset = std::stoull(e.getProp("ofs"));
+          const size_t count = std::stoull(e.getProp("count"));
+          if (format == "vec3f" || format == "float3") {
+            std::cout << "Loading uncompressed PKD\n";
+            auto posData = std::make_shared<DataArray3f>(reinterpret_cast<vec3f*>(binBasePtr + offset), count, false);
+            posData->setName("position");
+            geom->add(posData);
+          } else if (format == "uint64") {
+            std::cout << "Loading quantized PKD\n";
+            auto posData = std::make_shared<DataArrayT<uint64_t, OSP_ULONG>>(
+                reinterpret_cast<uint64_t*>(binBasePtr + offset), count, false);
+            posData->setName("position");
+            geom->add(posData);
+          }
         } else if (e.name == "radius") {
           geom->createChild("radius", "float", std::stof(e.content));
+        } else if (e.name == "attribute") {
+          std::cout << "TODO WILL: Handle attributes\n";
         }
       }
 
+      auto materials = geom->child("materialList").nodeAs<MaterialList>();
+      materials->item(0)["d"]  = 1.f;
+      materials->item(0)["Kd"] = vec3f(1.f);
+      materials->item(0)["Ks"] = vec3f(0.2f);
+
+#if 0
       auto model = createNode(fileName.str() + "_model", "Model");
       model->add(geom);
 
       auto instance = createNode(fileName.str() + "_instance", "Instance");
       instance->setChild("model", model);
       model->setParent(instance);
-      world->add(model);
+
+      world->add(instance);
+#else
+      world->add(geom);
+#endif
     }
 
     OSP_REGISTER_SG_NODE(PKDGeometry);
