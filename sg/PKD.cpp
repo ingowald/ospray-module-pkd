@@ -78,7 +78,6 @@ namespace ospray {
                    child("transferFunction").valueAs<OSPTransferFunction>());
       ospCommit(geom);
     }
-#endif
 
     void importPKD(std::shared_ptr<Node> world, const ospcommon::FileName fileName)
     {
