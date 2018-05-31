@@ -14,6 +14,7 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
+#include <thread>
 #include "PartiKD.h"
 #include "PKDConfig.h"
 #include "../ospray/MinMaxBVH2.h"
@@ -300,11 +301,11 @@ namespace ospray {
 
 #if 1
     if ((numLevels - depth) > 20) {
-      pthread_t lThread,rThread;
-      pthread_create(&lThread,NULL,pkdBuildThread,new PKDBuildJob(this,leftChildOf(nodeID),lBounds,depth+1));
+      std::thread lThread([&](){
+        pkdBuildThread(new PKDBuildJob(this,leftChildOf(nodeID),lBounds,depth+1));
+      });
       buildRec(rightChildOf(nodeID),rBounds,depth+1);
-      void *ret = NULL;
-      pthread_join(lThread,&ret);
+      lThread.join();
     } else
 #endif
       {
