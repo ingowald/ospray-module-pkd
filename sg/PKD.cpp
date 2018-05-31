@@ -102,8 +102,6 @@ namespace ospray {
         throw std::runtime_error("failed to find PKDGeometry child node");
       }
       for (const xml::Node &e : pkdNode.child) {
-        // TODO: How are attributes stored again? I forgot, need to fix
-        // the converter and make some examples
         if (e.name == "position") {
           const std::string format = e.getProp("format");
           const size_t offset = std::stoull(e.getProp("ofs"));
