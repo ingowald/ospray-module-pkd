@@ -23,8 +23,6 @@
 #include "PKDGeometry_ispc.h"
 
 namespace ospray {
-  using std::endl;
-  using std::cout;
 
   //! Constructor
   PartiKDGeometry::PartiKDGeometry()
@@ -64,7 +62,6 @@ namespace ospray {
 
   uint32 getAttributeBits(float val, float lo, float hi)
   {
-    // cout << " attrbits: " << val << " (" << lo << "," << hi << ")" << endl;
     if (hi == lo) return 1;
     int bit = std::min((int)31,int(32*((val-lo)/float(hi-lo))));
     return 1<<bit;
@@ -96,8 +93,7 @@ namespace ospray {
     particle     = particleData->data;
     numParticles = particleData->numItems;
     format = particleData->type;
-    bool isQuantized = format == OSP_ULONG;
-    PRINT(isQuantized);
+    const bool isQuantized = format == OSP_ULONG;
     const box3f centerBounds = getBounds();
     
     attributeData = getParamData("attribute",NULL);
@@ -105,7 +101,7 @@ namespace ospray {
     if (transferFunction) {
       transferFunction->registerListener(this);
     } else {
-      std::cout << "No transfer function set!\n";
+      postStatusMsg() << "Warning: No transfer function set!";
     }
 
     bool useSPMD = getParam1i("useSPMD",0);
@@ -115,8 +111,9 @@ namespace ospray {
       throw std::runtime_error("#osp:pkd: invalid radius (<= 0.f)");
     const float expectedRadius
       = (centerBounds.size().x+centerBounds.size().y+centerBounds.size().z)*powf(numParticles,1.f/3.f);
-    if (particleRadius > 10.f*expectedRadius)
-      cout << "#osp:pkd: Warning - particle radius is pretty big for given particle configuration !?" << endl;
+    if (particleRadius > 10.f*expectedRadius) {
+      postStatusMsg() << "#osp:pkd: Warning - particle radius is pretty big for given particle configuration !?";
+    }
     
     const box3f sphereBounds(centerBounds.lower - vec3f(particleRadius),
                              centerBounds.upper + vec3f(particleRadius));
@@ -132,7 +129,7 @@ namespace ospray {
     // Attribute culling on the lidar type-punned RGB data doesn't make sense, so don't do it
 #if !PARTIKD_LIDAR_ENABLED
     if (attribute) {
-      cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
+      postStatusMsg(2) << "#osp:pkd: found attribute, computing range and min/max bit array";
       attr_lo = attr_hi = attribute[0];
       for (size_t i=0;i<numParticles;i++) {
         attr_lo = std::min(attr_lo,attribute[i]);
@@ -141,7 +138,7 @@ namespace ospray {
 
       binBitsArray = new uint32[numInnerNodes];
       size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
-      cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << endl;
+      postStatusMsg(2) << "#osp:pkd: num bytes in range tree " << numBytesRangeTree;
       for (long long pID=numInnerNodes-1;pID>=0;--pID) {
         size_t lID = 2*pID+1;
         size_t rID = lID+1;
@@ -155,14 +152,11 @@ namespace ospray {
         else if (lID < numParticles)
           lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
         binBitsArray[pID] = lBits|rBits;
-        // cout << " bits " << pID << " : " << (int*)lBits << " " << (int*)rBits << endl;
       }
-      cout << "#osp:pkd: found attribute [" << attr_lo << ".."
-        << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
+      postStatusMsg(2) << "#osp:pkd: found attribute [" << attr_lo << ".."
+        << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0];
     }
 #endif
-
-    std::cout << "Bounds: " << sphereBounds << "\n";
 
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now

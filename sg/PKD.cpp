@@ -33,9 +33,7 @@ namespace ospray {
     //! constructor
     PKDGeometry::PKDGeometry() 
       : Geometry("pkd_geometry")
-    {
-      PING;
-    }
+    {}
 
 
     box3f PKDGeometry::bounds() const
@@ -125,7 +123,7 @@ namespace ospray {
         } else if (e.name == "radius") {
           geom->createChild("radius", "float", std::stof(e.content));
         } else if (e.name == "attribute") {
-          std::cout << "Got attribute" << e.getProp("name") << "\n";
+          std::cout << "Got attribute: " << e.getProp("name") << "\n";
           const std::string format = e.getProp("format");
           const size_t offset = std::stoull(e.getProp("ofs"));
           const size_t count = std::stoull(e.getProp("count"));
