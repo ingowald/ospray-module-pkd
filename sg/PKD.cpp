@@ -137,7 +137,7 @@ namespace ospray {
       if (geom->hasChild("attribute")) {
         auto tfn = createNode("transferFunction", "TransferFunction")->nodeAs<TransferFunction>();
         // Start with everything opaque in the data (show all particles)
-        tfn->child("alpha").nodeAs<DataVector2f>()->v[0].y = 1;
+        tfn->child("opacityControlPoints").nodeAs<DataVector2f>()->v[0].y = 1;
         geom->add(tfn);
       }
 
