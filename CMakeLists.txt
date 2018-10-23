@@ -15,22 +15,22 @@
 ## ======================================================================== ##
 
 # mini-scene graph viewer for _geometry_ (intentionally simple)
-OPTION(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree Module." ON)
-OPTION(OSPRAY_MODULE_PARTIKD_BUILDER "Build Particle KD Tree Builder apps." ON)
-OPTION(OSPRAY_MODULE_PARTIKD_SG "Build Particle KD Tree Scenegraph component." ON)
-OPTION(OSPRAY_MODULE_PARTIKD_LIDAR "Build Particle KD Tree Module for LiDAR (requires LAStools)." OFF)
+OPTION(OSPRAY_MODULE_PKD "Build Particle KD Tree Module." ON)
+OPTION(OSPRAY_MODULE_PKD_BUILDER "Build Particle KD Tree Builder apps." ON)
+OPTION(OSPRAY_MODULE_PKD_SG "Build Particle KD Tree Scenegraph component." ON)
+OPTION(OSPRAY_MODULE_PKD_LIDAR "Build Particle KD Tree Module for LiDAR (requires LAStools)." OFF)
 
-IF (OSPRAY_MODULE_PARTIKD)
-  IF (OSPRAY_MODULE_PARTIKD_LIDAR)
-    SET(PARTIKD_LIDAR_ENABLED 1)
+IF (OSPRAY_MODULE_PKD)
+  IF (OSPRAY_MODULE_PKD_LIDAR)
+    SET(PKD_LIDAR_ENABLED 1)
   ELSE()
-    SET(PARTIKD_LIDAR_ENABLED 0)
+    SET(PKD_LIDAR_ENABLED 0)
   ENDIF()
   CONFIGURE_FILE("PKDConfig.h.in" PKDConfig.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES_ISPC(${CMAKE_CURRENT_BINARY_DIR})
 
-  IF (OSPRAY_MODULE_PARTIKD_SG)
+  IF (OSPRAY_MODULE_PKD_SG)
     set(SG_SRCS "sg/PKD.cpp")
   ENDIF()
 
@@ -62,7 +62,7 @@ IF (OSPRAY_MODULE_PARTIKD)
   #ADD_SUBDIRECTORY(sg)
 
   # helper apps (converters, builders,...)
-  IF (OSPRAY_MODULE_PARTIKD_BUILDER)
+  IF (OSPRAY_MODULE_PKD_BUILDER)
     ADD_SUBDIRECTORY(apps)
   ENDIF()
 

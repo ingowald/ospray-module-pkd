@@ -25,7 +25,7 @@ namespace ospray {
   namespace xyz { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
   //namespace cosmos { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
   //namespace cosmic_web { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
   namespace las { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
 #endif
 
@@ -78,7 +78,7 @@ namespace ospray {
       // assume uintah format
       cosmos::importModel(this,fn);
     }*/
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
     else if (fn.ext() == "las" || fn.ext() == "laz"){
       las::importModel(this, fn);
     }

@@ -509,7 +509,7 @@ namespace ospray {
     if (model.radius == 0.f) {
       throw std::runtime_error("no radius specified via either command line or model file");
     }
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
     // WILL: lidar hack to re-scale data sets to not have so much precision issues with shadows/ao
     // We can't compare the box against embree::empty?
     if (input[0].ext() == "las" || input[0].ext() == "laz"){

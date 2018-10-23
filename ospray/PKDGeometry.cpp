@@ -126,8 +126,13 @@ namespace ospray {
     uint32 *binBitsArray = NULL;
     attribute = (float*)(attributeData?attributeData->data:NULL);
 
+    if (numParticles >= (1ULL << 31)) {
+      throw std::runtime_error("PKD Error: Too many particles in this geometry, "
+                               "split this model up into multiple PKD treelets.");
+    }
+
     // Attribute culling on the lidar type-punned RGB data doesn't make sense, so don't do it
-#if !PARTIKD_LIDAR_ENABLED
+#if !PKD_LIDAR_ENABLED
     if (attribute) {
       postStatusMsg(2) << "#osp:pkd: found attribute, computing range and min/max bit array";
       attr_lo = attr_hi = attribute[0];

@@ -111,15 +111,7 @@ unmasked void PartiKDGeometry_occluded_spmd(const struct RTCIntersectFunctionNAr
 unmasked void PartiKDGeometry_intersect_packet(const struct RTCIntersectFunctionNArguments *uniform args);
 unmasked void PartiKDGeometry_occluded_packet(const struct RTCIntersectFunctionNArguments *uniform args);
 
-// support 64-bit primitive IDs
-#define PRIMID64 1
-
-#if PRIMID64
-typedef uint64 primID_t;
-#else
 typedef uint32 primID_t;
-#endif
-
 
 struct Particle {
   float pos[3];

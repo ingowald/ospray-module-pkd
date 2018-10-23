@@ -65,7 +65,7 @@ namespace ospray {
     std::vector<vec_t> position;   //!< particle position
     std::vector<int>   type;       //!< 'type' of particle (e.g., the atom type for atomistic models)
     std::vector<Attribute *> attribute;
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
     box3f lidar_current_bounds = ospcommon::EmptyTy();
 #endif
 

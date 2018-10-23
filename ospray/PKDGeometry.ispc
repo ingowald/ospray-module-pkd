@@ -26,7 +26,7 @@
 #include "PKDConfig.h"
 // embree
 #include "geometry/Geometry.ih"
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
 #include "ColorMask.h"
 #endif
 
@@ -40,18 +40,10 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 
   dg.Ng = dg.Ns = ray.Ng;
 
-#if PARTIKD_LIDAR_ENABLED
+#if PKD_LIDAR_ENABLED
   if ((flags & DG_COLOR) && (THIS->attribute != NULL)){
     uniform int *uniform attribArray = (uniform int *uniform)THIS->attribute;
-
-    int attrib;
-    uint64 primID64 = (uint32)ray.primID_hi64;
-    primID64 <<= 32;
-    primID64 += (uint32)ray.primID;
-    foreach_unique(pID in primID64) {
-      uniform int *uniform ptr = attribArray + pID;
-      attrib = ptr[0];
-    }
+    const int attrib = attribArray[ray.primID];
     dg.color = make_vec4f(GET_RED(attrib) / 255.0, GET_GREEN(attrib) / 255.0,
         GET_BLUE(attrib) / 255.0, 1.0);
   }
@@ -62,18 +54,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const uniform float attrib_lo = THIS->attr_lo;
     const uniform float attrib_hi = THIS->attr_hi;
 
-    float attrib_org;
-#if PRIMID64
-    uint64 primID64 = (uint32)ray.primID_hi64;
-    primID64 <<= 32;
-    primID64 += (uint32)ray.primID;
-    foreach_unique(pID in primID64) {
-      uniform float *uniform ptr = attribArray + pID;
-      attrib_org = ptr[0];
-    }
-#else
-    attrib_org = attribArray[ray.primID];
-#endif
+    float attrib_org = attribArray[ray.primID];
       
     const float attrib
       = (attrib_org - attrib_lo)
