@@ -16,9 +16,6 @@
 
 #pragma once
 
-// ospray
-#include "ospray/common/OSPCommon.h"
-// embree
 #include "ospcommon/constants.h"
 #include "ospcommon/FileName.h"
 // std

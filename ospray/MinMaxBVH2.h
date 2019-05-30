@@ -18,7 +18,6 @@
 
 // ospray 
 #include "ospray/common/Data.h"
-#include "ospray/common/Model.h"
 // ospcommon
 #include "ospcommon/box.h"
 

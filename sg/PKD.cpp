@@ -16,10 +16,9 @@
 
 #include <memory>
 #include "PKD.h"
-#include "ospcommon/xml/XML.h"
-#include "common/sg/importer/Importer.h"
-#include "common/sg/transferFunction/TransferFunction.h"
-#include "common/sg/common/Common.h"
+#include "sg/importer/Importer.h"
+#include "sg/transferFunction/TransferFunction.h"
+#include "sg/common/Common.h"
 #include "ospcommon/xml/XML.h"
 #include "ospcommon/constants.h"
 

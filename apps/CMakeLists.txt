@@ -39,7 +39,7 @@ ENDIF()
 
 OSPRAY_CREATE_APPLICATION(PartiKD
   ${APP_SRCS}
-  LINK
+LINK
   ospray
   ospray_common
   ${LIBS}
