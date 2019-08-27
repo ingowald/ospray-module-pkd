@@ -29,7 +29,6 @@ namespace ospray {
     using std::cout;
     using std::endl;
 
-    //! constructor
     PKDGeometry::PKDGeometry() 
       : Geometry("pkd_geometry")
     {}
@@ -152,6 +151,6 @@ namespace ospray {
 
     OSPSG_REGISTER_IMPORT_FUNCTION(importPKD, pkd);
 
-  } // ::ospray::sg
-} // ::ospray
+  }
+}
 

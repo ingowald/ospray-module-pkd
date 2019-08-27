@@ -41,26 +41,19 @@ Once built, using the PKD module consists of two steps:
 
 To convert a particle model to our internal format (which includes building the tree), you use the _ospPartiKD_ tool. PartiKD supports several file format (TODO: more doc needed here!), and is run as follows:
 
-    ./ospPartiKD <inputFile> --radius <particleRadius> -o outFileName.pkd
+    ./PartiKD <inputFile> --radius <particleRadius> -o outFileName.pkd
 
 **Example:** To convert the cosmic web particle data set I use
 
-    ./ospPartiKD ~/cosmic_web/6k-cubed/0.000/particles/0.000xv00*dat --radius 1 -o ~/scratch/cosmic_web.pkd
+    ./PartiKD ~/cosmic_web/6k-cubed/0.000/particles/0.000xv00*dat --radius 1 -o ~/scratch/cosmic_web.pkd
 
 This step should create two files: a cosmic_web.pkd, and a cosmic_web.pkdbin
 
 ## 2) Rendering a pkd file
 
-Given a ".pkd" file (assuming ~/scratch/cosmic_web.pkd) you can render this with the ospray qt modelviewer as follows:
+Given a ".pkd" file (assuming ~/scratch/cosmic_web.pkd) you can render this with the OSPRay Example Viewer:
 
-    ./ospQTViewer --module pkd ~/scratch/cosmic_web.pkd
-
-Make sure you specify the "--module pkd", as this is required for the QT viewer to recognize the respective PKD scene graph nodes contained in the ".pkd" file.
-
-Assuming you have an mpi install ready, can also run that mpi-parallel via
-
-    mpirun -perhost 1 -np <numprocs> -f <hostsfile> ./ospQTViewer --module pkd ~/scratch/cosmic_web.pkd --osp:mpi
-
+    ./ospExampleViewer --module pkd --import:pkd:<path to pkd file>
 
 More Information:
 
